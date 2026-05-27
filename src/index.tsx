@@ -46,6 +46,7 @@ const EMPTY_DIAGNOSTICS: InjectionDiagnostics = {
 function Content() {
   const [settings, setSettings] = useState<PluginSettings>(DEFAULT_SETTINGS);
   const [stats, setStats] = useState<DatabaseStats | null>(null);
+  const [backendError, setBackendError] = useState<string | null>(null);
   const [diagnostics, setDiagnostics] = useState<InjectionDiagnostics>(EMPTY_DIAGNOSTICS);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResults>({ hostile: [], ukrainian: [] });
@@ -53,13 +54,21 @@ function Content() {
 
   useEffect(() => {
     let mounted = true;
-    void Promise.all([getSettings(), getDatabaseStats()]).then(([loadedSettings, loadedStats]) => {
-      if (!mounted) return;
-      const merged = { ...DEFAULT_SETTINGS, ...loadedSettings };
-      setSettings(merged);
-      setStats(loadedStats);
-      startSteamUiInjection(getAppStatus, merged, setDiagnostics);
-    });
+    void Promise.all([getSettings(), getDatabaseStats()])
+      .then(([loadedSettings, loadedStats]) => {
+        if (!mounted) return;
+        const merged = { ...DEFAULT_SETTINGS, ...loadedSettings };
+        setBackendError(null);
+        setSettings(merged);
+        setStats(loadedStats);
+        startSteamUiInjection(getAppStatus, merged, setDiagnostics);
+      })
+      .catch((error: unknown) => {
+        if (!mounted) return;
+        const message = error instanceof Error ? error.message : String(error);
+        setBackendError(message);
+        startSteamUiInjection(getAppStatus, DEFAULT_SETTINGS, setDiagnostics);
+      });
     return () => {
       mounted = false;
     };
@@ -195,7 +204,9 @@ function Content() {
           <div style={mutedStyle}>
             {stats
               ? `Версія ${stats.version}: ${stats.ukrainianCount} українських, ${stats.hostileCount} ворожих, кеш ${stats.cacheCount}`
-              : "Завантаження бази..."}
+              : backendError
+                ? `Backend error: ${backendError}`
+                : "Завантаження бази..."}
           </div>
         </PanelSectionRow>
         <PanelSectionRow>

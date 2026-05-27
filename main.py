@@ -4,7 +4,6 @@ import os
 import time
 import urllib.error
 import urllib.request
-from typing import Any
 
 import decky
 
@@ -23,6 +22,11 @@ CACHE_TTL_SECONDS = 60 * 60 * 24 * 14
 
 class Plugin:
     async def _main(self):
+        await self._ensure_loaded()
+
+    async def _ensure_loaded(self):
+        if getattr(self, "_loaded", False):
+            return
         self._plugin_dir = os.path.dirname(os.path.realpath(__file__))
         self._data_path = os.path.join(self._plugin_dir, "data", "developers.json")
         self._settings_path = os.path.join(decky.DECKY_SETTINGS_DIR, "settings.json")
@@ -33,17 +37,16 @@ class Plugin:
         self._cache = self._load_json(self._cache_path, {})
         self._hostile_set = set(self._database.get("hostile", []))
         self._ukrainian_set = set(self._database.get("ukrainian", []))
-        decky.logger.info(
-            "POHRAI/NE HRAI loaded %s hostile and %s Ukrainian entries",
-            len(self._hostile_set),
-            len(self._ukrainian_set),
-        )
+        self._loaded = True
+        decky.logger.info(f"POHRAI/NE HRAI loaded {len(self._hostile_set)} hostile and {len(self._ukrainian_set)} Ukrainian entries")
 
     async def _unload(self):
+        await self._ensure_loaded()
         await self._save_cache()
         self._save_json(self._settings_path, self._settings)
 
-    async def get_database_stats(self) -> dict[str, Any]:
+    async def get_database_stats(self):
+        await self._ensure_loaded()
         return {
             "version": self._database.get("version", "unknown"),
             "hostileCount": len(self._hostile_set),
@@ -51,17 +54,20 @@ class Plugin:
             "cacheCount": len(self._cache),
         }
 
-    async def get_settings(self) -> dict[str, Any]:
+    async def get_settings(self):
+        await self._ensure_loaded()
         return {**DEFAULT_SETTINGS, **self._settings}
 
-    async def save_settings(self, settings: dict[str, Any]) -> dict[str, Any]:
+    async def save_settings(self, settings):
+        await self._ensure_loaded()
         sanitized = {**DEFAULT_SETTINGS, **settings}
         sanitized["overlayOpacity"] = min(1, max(0.05, float(sanitized["overlayOpacity"])))
         self._settings = sanitized
         self._save_json(self._settings_path, self._settings)
         return self._settings
 
-    async def get_app_status(self, appid: str) -> dict[str, Any]:
+    async def get_app_status(self, appid):
+        await self._ensure_loaded()
         appid = str(appid).strip()
         if not appid:
             return self._empty_status(appid)
@@ -85,12 +91,13 @@ class Plugin:
 
         return self._mark_status(appid, details.get("developers", []), details.get("publishers", []))
 
-    async def search_database(self, query: str, limit: int = 40) -> dict[str, Any]:
+    async def search_database(self, query, limit=40):
+        await self._ensure_loaded()
         needle = query.strip().lower()
         if not needle:
             return {"hostile": [], "ukrainian": []}
 
-        def search(items: list[str]) -> list[str]:
+        def search(items):
             matches = [name for name in items if needle in name.lower()]
             return matches[: max(1, min(int(limit), 100))]
 
@@ -99,7 +106,7 @@ class Plugin:
             "ukrainian": search(self._database.get("ukrainian", [])),
         }
 
-    def _mark_status(self, appid: str, developers: list[str], publishers: list[str]) -> dict[str, Any]:
+    def _mark_status(self, appid, developers, publishers):
         names = [*developers, *publishers]
         hostile = [name for name in names if name in self._hostile_set]
         ukrainian = [name for name in names if name in self._ukrainian_set]
@@ -120,7 +127,7 @@ class Plugin:
             },
         }
 
-    def _empty_status(self, appid: str) -> dict[str, Any]:
+    def _empty_status(self, appid):
         return {
             "appid": appid,
             "type": None,
@@ -129,7 +136,7 @@ class Plugin:
             "matches": {"hostile": [], "ukrainian": []},
         }
 
-    def _fetch_appdetails(self, appid: str) -> dict[str, Any] | None:
+    def _fetch_appdetails(self, appid):
         url = f"https://store.steampowered.com/api/appdetails?appids={appid}"
         req = urllib.request.Request(url, headers={"User-Agent": "decky-pohrai-ne-hrai/0.1"})
         try:
@@ -149,17 +156,17 @@ class Plugin:
             "publishers": data.get("publishers") or [],
         }
 
-    def _load_database(self) -> dict[str, Any]:
+    def _load_database(self):
         return self._load_json(self._data_path, {"hostile": [], "ukrainian": []})
 
-    def _load_json(self, path: str, fallback: Any) -> Any:
+    def _load_json(self, path, fallback):
         try:
             with open(path, "r", encoding="utf-8") as handle:
                 return json.load(handle)
         except (FileNotFoundError, json.JSONDecodeError):
             return fallback.copy() if isinstance(fallback, dict) else fallback
 
-    def _save_json(self, path: str, data: Any) -> None:
+    def _save_json(self, path, data):
         os.makedirs(os.path.dirname(path), exist_ok=True)
         tmp_path = f"{path}.tmp"
         with open(tmp_path, "w", encoding="utf-8") as handle:
