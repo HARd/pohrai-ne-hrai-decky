@@ -20,7 +20,6 @@ for (const item of [
   "data",
   "dist",
   "main.py",
-  "package.json",
   "plugin.json",
 ]) {
   cpSync(join(root, item), join(stagingDir, item), { recursive: true });
