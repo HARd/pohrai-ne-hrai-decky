@@ -1,4 +1,4 @@
-import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
@@ -24,6 +24,22 @@ for (const item of [
 ]) {
   cpSync(join(root, item), join(stagingDir, item), { recursive: true });
 }
+
+writeFileSync(
+  join(stagingDir, "package.json"),
+  `${JSON.stringify(
+    {
+      name: "pohrai-ne-hrai",
+      version: "0.1.2",
+      description: "Marks Ukrainian and hostile game developers directly in the Steam Deck UI.",
+      type: "module",
+      main: "dist/index.js",
+      license: "MIT",
+    },
+    null,
+    2
+  )}\n`
+);
 
 execFileSync("zip", ["-r", zipPath, "pohrai-ne-hrai"], {
   cwd: releaseDir,
