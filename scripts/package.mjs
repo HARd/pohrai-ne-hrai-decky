@@ -1,9 +1,10 @@
-import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
+const rootPackage = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 const releaseDir = join(root, "release");
 const stagingDir = join(releaseDir, "pohrai-ne-hrai");
 const zipPath = join(releaseDir, "pohrai-ne-hrai.zip");
@@ -30,7 +31,7 @@ writeFileSync(
   `${JSON.stringify(
     {
       name: "pohrai-ne-hrai",
-      version: "0.1.2",
+      version: rootPackage.version,
       description: "Marks Ukrainian and hostile game developers directly in the Steam Deck UI.",
       type: "module",
       main: "dist/index.js",
