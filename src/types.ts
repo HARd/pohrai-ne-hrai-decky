@@ -1,0 +1,33 @@
+export type MarkType = "hostile" | "ukrainian" | null;
+
+export interface PluginSettings {
+  markHostile: boolean;
+  markUkrainian: boolean;
+  hostileColor: string;
+  ukrainianColor: string;
+  overlayOpacity: number;
+  showBadges: boolean;
+}
+
+export interface AppStatus {
+  appid: string;
+  type: MarkType;
+  developers: string[];
+  publishers: string[];
+  matches: {
+    hostile: string[];
+    ukrainian: string[];
+  };
+}
+
+export interface DatabaseStats {
+  version: string;
+  hostileCount: number;
+  ukrainianCount: number;
+  cacheCount: number;
+}
+
+export interface SearchResults {
+  hostile: string[];
+  ukrainian: string[];
+}

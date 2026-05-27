@@ -1,0 +1,7 @@
+node_modules/
+dist/
+__pycache__/
+release/
+*.zip
+.DS_Store
+npm-debug.log*
