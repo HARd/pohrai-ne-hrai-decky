@@ -16,7 +16,7 @@ import {
   stopSteamUiInjection,
   updateSteamUiInjectionSettings,
 } from "./injector";
-import type { AppStatus, DatabaseStats, PluginSettings, SearchResults } from "./types";
+import type { AppStatus, DatabaseStats, InjectionDiagnostics, PluginSettings, SearchResults } from "./types";
 
 const DEFAULT_SETTINGS: PluginSettings = {
   markHostile: true,
@@ -33,9 +33,20 @@ const saveSettings = callable<[settings: PluginSettings], PluginSettings>("save_
 const getDatabaseStats = callable<[], DatabaseStats>("get_database_stats");
 const searchDatabase = callable<[query: string, limit?: number], SearchResults>("search_database");
 
+const EMPTY_DIAGNOSTICS: InjectionDiagnostics = {
+  scans: 0,
+  candidates: 0,
+  appids: [],
+  marked: 0,
+  currentAppid: null,
+  lastType: null,
+  lastError: null,
+};
+
 function Content() {
   const [settings, setSettings] = useState<PluginSettings>(DEFAULT_SETTINGS);
   const [stats, setStats] = useState<DatabaseStats | null>(null);
+  const [diagnostics, setDiagnostics] = useState<InjectionDiagnostics>(EMPTY_DIAGNOSTICS);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResults>({ hostile: [], ukrainian: [] });
   const [saving, setSaving] = useState(false);
@@ -47,7 +58,7 @@ function Content() {
       const merged = { ...DEFAULT_SETTINGS, ...loadedSettings };
       setSettings(merged);
       setStats(loadedStats);
-      updateSteamUiInjectionSettings(merged);
+      startSteamUiInjection(getAppStatus, merged, setDiagnostics);
     });
     return () => {
       mounted = false;
@@ -153,6 +164,29 @@ function Content() {
           <ButtonItem layout="below" disabled={saving} onClick={persistSettings}>
             {saving ? "Збереження..." : "Зберегти"}
           </ButtonItem>
+        </PanelSectionRow>
+      </PanelSection>
+
+      <PanelSection title="Діагностика">
+        <PanelSectionRow>
+          <div style={mutedStyle}>
+            {`Сканів: ${diagnostics.scans}, кандидатів: ${diagnostics.candidates}, позначок: ${diagnostics.marked}`}
+          </div>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <div style={mutedStyle}>
+            {`Поточний appid: ${diagnostics.currentAppid || "не знайдено"}`}
+          </div>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <div style={mutedStyle}>
+            {`Знайдені appid: ${diagnostics.appids.length ? diagnostics.appids.join(", ") : "немає"}`}
+          </div>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <div style={mutedStyle}>
+            {`Останній тип: ${diagnostics.lastType || "немає"}${diagnostics.lastError ? `, помилка: ${diagnostics.lastError}` : ""}`}
+          </div>
         </PanelSectionRow>
       </PanelSection>
 

@@ -31,3 +31,13 @@ export interface SearchResults {
   hostile: string[];
   ukrainian: string[];
 }
+
+export interface InjectionDiagnostics {
+  scans: number;
+  candidates: number;
+  appids: string[];
+  marked: number;
+  currentAppid: string | null;
+  lastType: MarkType;
+  lastError: string | null;
+}
