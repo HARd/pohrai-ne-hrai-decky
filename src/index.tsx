@@ -16,6 +16,13 @@ import {
   stopSteamUiInjection,
   updateSteamUiInjectionSettings,
 } from "./injector";
+import {
+  getLocalAppStatus,
+  getLocalDatabaseStats,
+  getLocalSettings,
+  saveLocalSettings,
+  searchLocalDatabase,
+} from "./localBackend";
 import type { AppStatus, DatabaseStats, InjectionDiagnostics, PluginSettings, SearchResults } from "./types";
 
 const DEFAULT_SETTINGS: PluginSettings = {
@@ -32,6 +39,8 @@ const getSettings = callable<[], PluginSettings>("get_settings");
 const saveSettings = callable<[settings: PluginSettings], PluginSettings>("save_settings");
 const getDatabaseStats = callable<[], DatabaseStats>("get_database_stats");
 const searchDatabase = callable<[query: string, limit?: number], SearchResults>("search_database");
+
+const BACKEND_TIMEOUT_MS = 1800;
 
 const EMPTY_DIAGNOSTICS: InjectionDiagnostics = {
   scans: 0,
@@ -54,7 +63,15 @@ function Content() {
 
   useEffect(() => {
     let mounted = true;
-    void Promise.all([getSettings(), getDatabaseStats()])
+    const localSettings = getLocalSettings();
+    setSettings(localSettings);
+    setStats(getLocalDatabaseStats());
+    startSteamUiInjection(getResolvedAppStatus, localSettings, setDiagnostics);
+
+    void Promise.all([
+      withTimeout(getSettings(), BACKEND_TIMEOUT_MS, "get_settings"),
+      withTimeout(getDatabaseStats(), BACKEND_TIMEOUT_MS, "get_database_stats"),
+    ])
       .then(([loadedSettings, loadedStats]) => {
         if (!mounted) return;
         const merged = { ...DEFAULT_SETTINGS, ...loadedSettings };
@@ -67,7 +84,7 @@ function Content() {
         if (!mounted) return;
         const message = error instanceof Error ? error.message : String(error);
         setBackendError(message);
-        startSteamUiInjection(getAppStatus, DEFAULT_SETTINGS, setDiagnostics);
+        startSteamUiInjection(getResolvedAppStatus, localSettings, setDiagnostics);
       });
     return () => {
       mounted = false;
@@ -80,7 +97,10 @@ function Content() {
         setResults({ hostile: [], ukrainian: [] });
         return;
       }
-      void searchDatabase(query, 12).then(setResults);
+      setResults(searchLocalDatabase(query, 12));
+      void withTimeout(searchDatabase(query, 12), BACKEND_TIMEOUT_MS, "search_database")
+        .then(setResults)
+        .catch(() => undefined);
     }, 250);
     return () => window.clearTimeout(timeout);
   }, [query]);
@@ -94,7 +114,10 @@ function Content() {
   const persistSettings = async () => {
     setSaving(true);
     try {
-      const saved = await saveSettings(settings);
+      const localSaved = saveLocalSettings(settings);
+      setSettings(localSaved);
+      updateSteamUiInjectionSettings(localSaved);
+      const saved = await withTimeout(saveSettings(localSaved), BACKEND_TIMEOUT_MS, "save_settings").catch(() => localSaved);
       setSettings(saved);
       updateSteamUiInjectionSettings(saved);
       toaster.toast({ title: "POHRAI/NE HRAI", body: "Налаштування збережено" });
@@ -301,10 +324,7 @@ const resultItemStyle = {
 export default definePlugin(() => {
   console.log("[POHRAI/NE HRAI] initializing");
 
-  void getSettings().then((loadedSettings) => {
-    const merged = { ...DEFAULT_SETTINGS, ...loadedSettings };
-    startSteamUiInjection(getAppStatus, merged);
-  });
+  startSteamUiInjection(getResolvedAppStatus, getLocalSettings());
 
   return {
     name: "POHRAI/NE HRAI",
@@ -316,3 +336,19 @@ export default definePlugin(() => {
     },
   };
 });
+
+async function getResolvedAppStatus(appid: string): Promise<AppStatus> {
+  return withTimeout(getAppStatus(appid), BACKEND_TIMEOUT_MS, "get_app_status").catch(() => getLocalAppStatus(appid));
+}
+
+async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: number | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = window.setTimeout(() => reject(new Error(`${label} timed out`)), ms);
+  });
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
