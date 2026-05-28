@@ -99,8 +99,9 @@ class Plugin:
         await self._ensure_loaded()
         return {**DEFAULT_SETTINGS, **self._settings}
 
-    async def save_settings(self, settings):
+    async def save_settings(self, **kwargs):
         await self._ensure_loaded()
+        settings = kwargs.get("settings", kwargs)
         sanitized = {**DEFAULT_SETTINGS, **settings}
         sanitized["overlayOpacity"] = min(1, max(0.05, float(sanitized["overlayOpacity"])))
         sanitized["remoteDatabaseEnabled"] = bool(sanitized.get("remoteDatabaseEnabled"))
