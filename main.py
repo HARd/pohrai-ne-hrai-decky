@@ -80,6 +80,24 @@ class Plugin:
         await self._refresh_database(force=True)
         return self._settings
 
+    async def refresh_database(self, force=True):
+        await self._ensure_loaded()
+        await self._refresh_database(force=force)
+        return await self.get_database_stats()
+
+    async def get_cef_debugger_url(self):
+        import os
+        path = os.path.expanduser("~/.local/share/Steam/.cef-enable-remote-debugging")
+        if os.path.exists(path):
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    port = f.read().strip()
+                    if port.isdigit():
+                        return f"http://localhost:{port}/json"
+            except Exception:
+                pass
+        return "http://localhost:8080/json"
+
     async def get_app_status(self, appid):
         await self._ensure_loaded()
         appid = str(appid).strip()

@@ -18,16 +18,12 @@ import {
   updateSteamUiInjectionSettings,
 } from "./injector";
 import {
-  getLocalAppStatus,
-  getLocalDatabaseStats,
   getLocalSettings,
-  refreshLocalDatabaseFromRemote,
   saveLocalSettings,
-  searchLocalDatabase,
 } from "./localBackend";
 import { patchLibraryApp } from "./patchLibraryApp";
 import { initStorePatch, refreshStorePatch } from "./storePatch";
-import type { AppStatus, DatabaseStats, InjectionDiagnostics, PluginSettings, SearchResults } from "./types";
+import type { AppStatus, PluginSettings, DatabaseStats } from "./types";
 
 const DEFAULT_SETTINGS: PluginSettings = {
   markHostile: true,
@@ -43,85 +39,46 @@ const DEFAULT_SETTINGS: PluginSettings = {
 const getAppStatus = callable<[appid: string], AppStatus>("get_app_status");
 const getSettings = callable<[], PluginSettings>("get_settings");
 const saveSettings = callable<[settings: PluginSettings], PluginSettings>("save_settings");
+const refreshDatabase = callable<[force: boolean], DatabaseStats>("refresh_database");
 const getDatabaseStats = callable<[], DatabaseStats>("get_database_stats");
-const searchDatabase = callable<[query: string, limit?: number], SearchResults>("search_database");
 
 const BACKEND_TIMEOUT_MS = 1800;
 let activeSettings = getLocalSettings();
 
-const EMPTY_DIAGNOSTICS: InjectionDiagnostics = {
-  scans: 0,
-  candidates: 0,
-  appids: [],
-  marked: 0,
-  currentAppid: null,
-  lastType: null,
-  lastError: null,
-  route: "",
-};
-
 function Content() {
   const [settings, setSettings] = useState<PluginSettings>(DEFAULT_SETTINGS);
-  const [stats, setStats] = useState<DatabaseStats | null>(null);
-  const [backendError, setBackendError] = useState<string | null>(null);
-  const [diagnostics, setDiagnostics] = useState<InjectionDiagnostics>(EMPTY_DIAGNOSTICS);
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResults>({ hostile: [], ukrainian: [] });
   const [saving, setSaving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [stats, setStats] = useState<DatabaseStats | null>(null);
 
   useEffect(() => {
     let mounted = true;
     const localSettings = getLocalSettings();
     activeSettings = localSettings;
     setSettings(localSettings);
-    setStats(getLocalDatabaseStats());
-    void refreshLocalDatabaseFromRemote(localSettings).then((nextStats) => {
-      if (mounted) setStats(nextStats);
-    });
-    startSteamUiInjection(getResolvedAppStatus, localSettings, setDiagnostics);
+    startSteamUiInjection(getResolvedAppStatus, localSettings);
 
-    void Promise.all([
-      withTimeout(getSettings(), BACKEND_TIMEOUT_MS, "get_settings"),
-      withTimeout(getDatabaseStats(), BACKEND_TIMEOUT_MS, "get_database_stats"),
-    ])
-      .then(([loadedSettings, loadedStats]) => {
+    void withTimeout(getSettings(), BACKEND_TIMEOUT_MS, "get_settings")
+      .then((loadedSettings) => {
         if (!mounted) return;
         const merged = { ...DEFAULT_SETTINGS, ...loadedSettings };
         activeSettings = merged;
-        setBackendError(null);
         setSettings(merged);
-        setStats(loadedStats);
-        void refreshLocalDatabaseFromRemote(merged).then((nextStats) => {
-          if (mounted) setStats(nextStats);
-        });
-        startSteamUiInjection(getAppStatus, merged, setDiagnostics);
+        startSteamUiInjection(getResolvedAppStatus, merged);
       })
-      .catch((error: unknown) => {
+      .catch(() => {
         if (!mounted) return;
-        const message = error instanceof Error ? error.message : String(error);
-        setBackendError(message);
-        startSteamUiInjection(getResolvedAppStatus, localSettings, setDiagnostics);
+        startSteamUiInjection(getResolvedAppStatus, localSettings);
       });
+
+    void withTimeout(getDatabaseStats(), BACKEND_TIMEOUT_MS, "get_database_stats")
+      .then((s) => mounted && setStats(s))
+      .catch(() => {});
+
     return () => {
       mounted = false;
     };
   }, []);
-
-  useEffect(() => {
-    const timeout = window.setTimeout(() => {
-      if (!query.trim()) {
-        setResults({ hostile: [], ukrainian: [] });
-        return;
-      }
-      const localResults = searchLocalDatabase(query, 12);
-      setResults(localResults);
-      if (activeSettings.remoteDatabaseEnabled) return;
-      void withTimeout(searchDatabase(query, 12), BACKEND_TIMEOUT_MS, "search_database")
-        .then(setResults)
-        .catch(() => undefined);
-    }, 250);
-    return () => window.clearTimeout(timeout);
-  }, [query]);
 
   const updateSetting = <K extends keyof PluginSettings>(key: K, value: PluginSettings[K]) => {
     const next = { ...settings, [key]: value };
@@ -142,7 +99,6 @@ function Content() {
       activeSettings = saved;
       setSettings(saved);
       updateSteamUiInjectionSettings(saved);
-      setStats(await refreshLocalDatabaseFromRemote(saved, true));
       refreshStorePatch();
       toaster.toast({ title: "POHRAI/NE HRAI", body: "Налаштування збережено" });
     } finally {
@@ -150,8 +106,48 @@ function Content() {
     }
   };
 
+  const forceRefresh = async () => {
+    setSyncing(true);
+    try {
+      const newStats = await withTimeout(refreshDatabase(true), BACKEND_TIMEOUT_MS, "refresh_database");
+      setStats(newStats);
+      toaster.toast({ title: "POHRAI/NE HRAI", body: "Базу даних оновлено" });
+    } catch {
+      toaster.toast({ title: "POHRAI/NE HRAI", body: "Помилка оновлення бази" });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   return (
     <>
+      <PanelSection title="Інформація про базу">
+        <PanelSectionRow>
+          <div style={fieldStyle}>
+            {stats ? (
+              <>
+                <span>Джерело: {stats.source === "remote" ? "Хмарна база" : "Вбудована база"}</span>
+                <span>Версія: {stats.version}</span>
+                <span>Ворожих розробників: {stats.hostileCount}</span>
+                <span>Українських: {stats.ukrainianCount}</span>
+                {stats.lastRemoteError && (
+                  <span style={{ color: "#e74c3c", marginTop: "4px" }}>
+                    Помилка синхронізації: {stats.lastRemoteError}
+                  </span>
+                )}
+              </>
+            ) : (
+              <span>Завантаження...</span>
+            )}
+          </div>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <ButtonItem layout="below" disabled={saving || syncing} onClick={forceRefresh}>
+            {syncing ? "Оновлення..." : "Оновити базу даних"}
+          </ButtonItem>
+        </PanelSectionRow>
+      </PanelSection>
+
       <PanelSection title="Маркування Steam UI">
         <PanelSectionRow>
           <label style={rowStyle}>
@@ -217,106 +213,12 @@ function Content() {
           </div>
         </PanelSectionRow>
         <PanelSectionRow>
-          <ButtonItem layout="below" disabled={saving} onClick={persistSettings}>
+          <ButtonItem layout="below" disabled={saving || syncing} onClick={persistSettings}>
             {saving ? "Збереження..." : "Зберегти"}
           </ButtonItem>
         </PanelSectionRow>
       </PanelSection>
-
-      <PanelSection title="Діагностика">
-        <PanelSectionRow>
-          <div style={mutedStyle}>
-            {`Сканів: ${diagnostics.scans}, кандидатів: ${diagnostics.candidates}, позначок: ${diagnostics.marked}`}
-          </div>
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <div style={mutedStyle}>
-            {`Поточний appid: ${diagnostics.currentAppid || "не знайдено"}`}
-          </div>
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <div style={mutedStyle}>
-            {`Знайдені appid: ${diagnostics.appids.length ? diagnostics.appids.join(", ") : "немає"}`}
-          </div>
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <div style={mutedStyle}>
-            {`Останній тип: ${diagnostics.lastType || "немає"}${diagnostics.lastError ? `, помилка: ${diagnostics.lastError}` : ""}`}
-          </div>
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <div style={mutedStyle}>
-            {`Route: ${diagnostics.route || "немає"}`}
-          </div>
-        </PanelSectionRow>
-      </PanelSection>
-
-      <PanelSection title="База">
-        <PanelSectionRow>
-          <div style={mutedStyle}>
-            {stats
-              ? `Версія ${stats.version}: ${stats.ukrainianCount} українських, ${stats.hostileCount} ворожих, кеш ${stats.cacheCount}, джерело ${stats.source === "remote" ? "Firebase" : "вбудована"}${stats.lastRemoteError ? `, Firebase: ${stats.lastRemoteError}` : ""}`
-              : backendError
-                ? `Backend error: ${backendError}`
-                : "Завантаження бази..."}
-          </div>
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <label style={rowStyle}>
-            <input
-              type="checkbox"
-              checked={settings.remoteDatabaseEnabled}
-              onChange={(event) => updateSetting("remoteDatabaseEnabled", event.currentTarget.checked)}
-            />
-            <span>Використовувати Firebase Realtime Database</span>
-          </label>
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <div style={fieldStyle}>
-            <span>Firebase REST URL</span>
-            <input
-              style={searchStyle}
-              type="text"
-              value={settings.remoteDatabaseUrl}
-              placeholder="https://PROJECT-default-rtdb.REGION.firebasedatabase.app/pohrai-ne-hrai"
-              onChange={(event) => updateSetting("remoteDatabaseUrl", event.currentTarget.value)}
-            />
-          </div>
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <input
-            style={searchStyle}
-            type="text"
-            value={query}
-            placeholder="Пошук розробника"
-            onChange={(event) => setQuery(event.currentTarget.value)}
-          />
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <ResultList title="Дружній" items={results.ukrainian} color={settings.ukrainianColor} />
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <ResultList title="Ворожий" items={results.hostile} color={settings.hostileColor} />
-        </PanelSectionRow>
-      </PanelSection>
     </>
-  );
-}
-
-function ResultList({ title, items, color }: { title: string; items: string[]; color: string }) {
-  if (!items.length) return <div style={mutedStyle}>{title}: немає збігів</div>;
-
-  return (
-    <div style={fieldStyle}>
-      <strong style={{ color }}>{title}</strong>
-      <div style={resultListStyle}>
-        {items.map((item) => (
-          <div key={`${title}-${item}`} style={resultItemStyle}>
-            {item}
-          </div>
-        ))}
-      </div>
-    </div>
   );
 }
 
@@ -342,36 +244,6 @@ const colorGridStyle = {
   width: "100%",
 } as const;
 
-const mutedStyle = {
-  color: "#b8bcbf",
-  fontSize: "12px",
-  lineHeight: 1.35,
-} as const;
-
-const searchStyle = {
-  width: "100%",
-  boxSizing: "border-box",
-  padding: "8px",
-  borderRadius: "4px",
-  border: "1px solid rgba(255,255,255,.2)",
-  background: "rgba(0,0,0,.25)",
-  color: "#fff",
-} as const;
-
-const resultListStyle = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "4px",
-  maxHeight: "160px",
-  overflow: "auto",
-} as const;
-
-const resultItemStyle = {
-  padding: "4px 0",
-  borderBottom: "1px solid rgba(255,255,255,.08)",
-  fontSize: "12px",
-} as const;
-
 export default definePlugin(() => {
   console.log("[POHRAI/NE HRAI] initializing");
 
@@ -393,10 +265,13 @@ export default definePlugin(() => {
 });
 
 async function getResolvedAppStatus(appid: string): Promise<AppStatus> {
-  if (activeSettings.remoteDatabaseEnabled) {
-    return getLocalAppStatus(appid).catch(() => withTimeout(getAppStatus(appid), BACKEND_TIMEOUT_MS, "get_app_status"));
-  }
-  return withTimeout(getAppStatus(appid), BACKEND_TIMEOUT_MS, "get_app_status").catch(() => getLocalAppStatus(appid));
+  return withTimeout(getAppStatus(appid), BACKEND_TIMEOUT_MS, "get_app_status").catch(() => ({
+    appid,
+    type: null,
+    developers: [],
+    publishers: [],
+    matches: { hostile: [], ukrainian: [] }
+  }));
 }
 
 async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {

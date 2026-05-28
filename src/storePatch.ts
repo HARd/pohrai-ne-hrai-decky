@@ -1,4 +1,4 @@
-import { fetchNoCors } from "@decky/api";
+import { callable, fetchNoCors } from "@decky/api";
 import { findModuleExport } from "@decky/ui";
 import type { AppStatus, PluginSettings } from "./types";
 
@@ -22,6 +22,9 @@ let messageId = 1;
 let currentAppid = "";
 let currentLookup: Lookup | null = null;
 let currentSettingsGetter: SettingsGetter | null = null;
+let connectTimeoutId: number | undefined;
+
+const getCefDebuggerUrl = callable<[], string>("get_cef_debugger_url");
 
 function getBadgePayload(status: AppStatus, settings: PluginSettings) {
   if (!settings.showBadges || !status.type) return null;
@@ -133,12 +136,13 @@ async function connectToStoreDebugger(retries = 5): Promise<void> {
   if (retries <= 0 || !isStoreMounted) return;
 
   try {
-    const response = await fetchNoCors("http://localhost:8080/json");
+    const debuggerUrl = await getCefDebuggerUrl().catch(() => "http://localhost:8080/json");
+    const response = await fetchNoCors(debuggerUrl);
     const tabs = (await response.json()) as SteamWebTab[];
     const storeTab = tabs.find((tab) => tab.url.includes("store.steampowered.com"));
 
     if (!storeTab) {
-      window.setTimeout(() => void connectToStoreDebugger(retries - 1), 1000);
+      connectTimeoutId = window.setTimeout(() => void connectToStoreDebugger(retries - 1), 1000);
       return;
     }
 
@@ -173,7 +177,7 @@ async function connectToStoreDebugger(retries = 5): Promise<void> {
 
     storeWebSocket.onerror = () => {
       if (isStoreMounted) {
-        window.setTimeout(() => void connectToStoreDebugger(retries - 1), 1000);
+        connectTimeoutId = window.setTimeout(() => void connectToStoreDebugger(retries - 1), 1000);
       }
     };
 
@@ -181,12 +185,12 @@ async function connectToStoreDebugger(retries = 5): Promise<void> {
       storeWebSocket = null;
       wsReady = false;
       if (isStoreMounted) {
-        window.setTimeout(() => void connectToStoreDebugger(retries), 1000);
+        connectTimeoutId = window.setTimeout(() => void connectToStoreDebugger(retries), 1000);
       }
     };
   } catch {
     if (isStoreMounted) {
-      window.setTimeout(() => void connectToStoreDebugger(retries - 1), 1000);
+      connectTimeoutId = window.setTimeout(() => void connectToStoreDebugger(retries - 1), 1000);
     }
   }
 }
@@ -196,6 +200,11 @@ function disconnectStoreDebugger() {
   isStoreMounted = false;
   wsReady = false;
   currentAppid = "";
+
+  if (connectTimeoutId) {
+    window.clearTimeout(connectTimeoutId);
+    connectTimeoutId = undefined;
+  }
 
   if (storeWebSocket) {
     storeWebSocket.close();
