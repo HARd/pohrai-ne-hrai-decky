@@ -278,13 +278,7 @@ export default definePlugin(() => {
 });
 
 async function getResolvedAppStatus(appid: string): Promise<AppStatus> {
-  return withTimeout(getAppStatus(appid), BACKEND_TIMEOUT_MS, "get_app_status").catch(() => ({
-    appid,
-    type: null,
-    developers: [],
-    publishers: [],
-    matches: { hostile: [], ukrainian: [] }
-  }));
+  return getAppStatus(appid);
 }
 
 async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
