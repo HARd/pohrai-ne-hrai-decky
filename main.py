@@ -5,13 +5,14 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-import ssl
-
 import decky
-
-SSL_CONTEXT = ssl.create_default_context()
-SSL_CONTEXT.check_hostname = False
-SSL_CONTEXT.verify_mode = ssl.CERT_NONE
+try:
+    import ssl
+    SSL_CONTEXT = ssl.create_default_context()
+    SSL_CONTEXT.check_hostname = False
+    SSL_CONTEXT.verify_mode = ssl.CERT_NONE
+except Exception:
+    SSL_CONTEXT = None
 
 
 DEFAULT_SETTINGS = {
