@@ -41,6 +41,7 @@ const DEFAULT_SETTINGS: PluginSettings = {
   libraryBadgePosition: "bottom-right",
   libraryBadgeStyle: "text",
   language: "uk",
+  showReportButton: true,
   lastSeenHostileCount: 0,
   lastSeenUkrCount: 0,
 };
@@ -284,6 +285,13 @@ function Content() {
             label={t(lang, "menu_show_badges")}
             checked={settings.showBadges}
             onChange={(checked) => updateSetting("showBadges", checked)}
+          />
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <ToggleField
+            label={t(lang, "menu_show_report")}
+            checked={settings.showReportButton}
+            onChange={(checked) => updateSetting("showReportButton", checked)}
           />
         </PanelSectionRow>
         <PanelSectionRow>

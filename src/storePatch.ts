@@ -27,7 +27,18 @@ let connectTimeoutId: number | undefined;
 const getCefDebuggerUrl = callable<[], string>("get_cef_debugger_url");
 
 function getBadgePayload(status: AppStatus, settings: PluginSettings) {
-  if (!settings.showBadges || !status.type) return null;
+  if (!status.type) {
+    if (settings.showReportButton) {
+      return {
+        isReport: true,
+        appid: status.appid,
+        remoteDatabaseUrl: settings.remoteDatabaseUrl
+      };
+    }
+    return null;
+  }
+  
+  if (!settings.showBadges) return null;
   if (status.type === "hostile" && !settings.markHostile) return null;
   if (status.type === "ukrainian" && !settings.markUkrainian) return null;
 
@@ -73,41 +84,131 @@ async function injectBadgeIntoStore(appid: string) {
       return;
     }
 
-    const script = `
-      (function() {
-        var existing = document.getElementById('pohrai-ne-hrai-store-badge');
-        if (existing) existing.remove();
+    let script = '';
 
-        var badge = document.createElement('div');
-        badge.id = 'pohrai-ne-hrai-store-badge';
-        badge.textContent = ${JSON.stringify(payload.label)};
-        badge.style.cssText = [
-          'position: fixed',
-          'left: 22px',
-          'bottom: 22px',
-          'z-index: 999999',
-          'box-sizing: border-box',
-          'max-width: min(360px, calc(100vw - 44px))',
-          'padding: 8px 16px',
-          'border-radius: 8px',
-          'border: 1px solid ${payload.border}',
-          'background: ${payload.background}',
-          'box-shadow: 0 10px 28px ${payload.shadow}',
-          'color: #fff',
-          'font-family: Motiva Sans, Arial, sans-serif',
-          'font-size: 18px',
-          'font-weight: 800',
-          'line-height: 22px',
-          'letter-spacing: 0',
-          'text-align: center',
-          'white-space: normal',
-          'overflow-wrap: anywhere',
-          'pointer-events: none'
-        ].join(';');
+    if (payload.isReport && payload.remoteDatabaseUrl) {
+      script = `
+        (function() {
+          var existing = document.getElementById('pohrai-ne-hrai-store-badge');
+          if (existing) existing.remove();
 
-        document.body.appendChild(badge);
-      })();
-    `;
+          var badge = document.createElement('div');
+          badge.id = 'pohrai-ne-hrai-store-badge';
+          badge.textContent = "⚠️ Report Game";
+          badge.style.cssText = [
+            'position: fixed',
+            'left: 22px',
+            'bottom: 22px',
+            'z-index: 999999',
+            'box-sizing: border-box',
+            'padding: 8px 16px',
+            'border-radius: 8px',
+            'border: 1px solid rgba(255,255,255,0.2)',
+            'background: rgba(30,30,30,0.85)',
+            'backdrop-filter: blur(8px)',
+            'box-shadow: 0 10px 28px rgba(0,0,0,0.5)',
+            'color: #ccc',
+            'font-family: Motiva Sans, Arial, sans-serif',
+            'font-size: 14px',
+            'font-weight: bold',
+            'cursor: pointer',
+            'transition: all 0.2s',
+            'user-select: none'
+          ].join(';');
+
+          badge.onmouseover = function() {
+            badge.style.color = '#fff';
+            badge.style.background = 'rgba(50,50,50,0.95)';
+            badge.style.transform = 'scale(1.05)';
+          };
+          badge.onmouseout = function() {
+            badge.style.color = '#ccc';
+            badge.style.background = 'rgba(30,30,30,0.85)';
+            badge.style.transform = 'scale(1)';
+          };
+
+          badge.onclick = function() {
+            if (badge.dataset.sent === "1") return;
+            badge.textContent = "Sending...";
+            
+            var appName = document.querySelector('.apphub_AppName');
+            var name = appName ? appName.textContent.trim() : "Unknown";
+            
+            var devNodes = document.querySelectorAll('.dev_row a');
+            var devs = [];
+            devNodes.forEach(function(n) { devs.push(n.textContent.trim()); });
+            var developer = devs.join(", ") || "Unknown";
+            
+            var url = ${JSON.stringify(payload.remoteDatabaseUrl)};
+            if (!url.endsWith("/")) url += "/";
+            url += "reports.json";
+            
+            var data = {
+              appid: ${JSON.stringify(payload.appid)},
+              name: name.substring(0, 199),
+              developer: developer.substring(0, 199),
+              timestamp: Date.now()
+            };
+            
+            fetch(url, {
+              method: 'POST',
+              body: JSON.stringify(data),
+              headers: { 'Content-Type': 'application/json' }
+            }).then(function() {
+              badge.textContent = "✅ Sent!";
+              badge.dataset.sent = "1";
+              badge.style.background = 'rgba(39, 174, 96, 0.85)';
+              setTimeout(function() {
+                badge.style.opacity = '0';
+                setTimeout(function() { badge.remove(); }, 500);
+              }, 2000);
+            }).catch(function() {
+              badge.textContent = "❌ Error";
+              setTimeout(function() { badge.textContent = "⚠️ Report Game"; }, 2000);
+            });
+          };
+
+          document.body.appendChild(badge);
+        })();
+      `;
+    } else {
+      script = `
+        (function() {
+          var existing = document.getElementById('pohrai-ne-hrai-store-badge');
+          if (existing) existing.remove();
+
+          var badge = document.createElement('div');
+          badge.id = 'pohrai-ne-hrai-store-badge';
+          badge.textContent = ${JSON.stringify(payload.label)};
+          badge.style.cssText = [
+            'position: fixed',
+            'left: 22px',
+            'bottom: 22px',
+            'z-index: 999999',
+            'box-sizing: border-box',
+            'max-width: min(360px, calc(100vw - 44px))',
+            'padding: 8px 16px',
+            'border-radius: 8px',
+            'border: 1px solid ${payload.border}',
+            'background: ${payload.background}',
+            'box-shadow: 0 10px 28px ${payload.shadow}',
+            'color: #fff',
+            'font-family: Motiva Sans, Arial, sans-serif',
+            'font-size: 18px',
+            'font-weight: 800',
+            'line-height: 22px',
+            'letter-spacing: 0',
+            'text-align: center',
+            'white-space: normal',
+            'overflow-wrap: anywhere',
+            'pointer-events: none'
+          ].join(';');
+
+          document.body.appendChild(badge);
+        })();
+      `;
+    }
+    
     evaluateInStore(script);
   } catch (error) {
     removeBadgeFromStore();

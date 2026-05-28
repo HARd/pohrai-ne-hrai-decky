@@ -12,6 +12,7 @@ const DEFAULT_SETTINGS: PluginSettings = {
   libraryBadgePosition: "bottom-right",
   libraryBadgeStyle: "text",
   language: "uk",
+  showReportButton: true,
   lastSeenHostileCount: 0,
   lastSeenUkrCount: 0,
 };

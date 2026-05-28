@@ -12,6 +12,7 @@ export interface PluginSettings {
   libraryBadgePosition: "top-left" | "top-right" | "bottom-left" | "bottom-right";
   libraryBadgeStyle: "text" | "icon";
   language: "uk" | "en";
+  showReportButton: boolean;
   lastSeenHostileCount: number;
   lastSeenUkrCount: number;
 }
