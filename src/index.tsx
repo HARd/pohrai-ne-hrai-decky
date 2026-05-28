@@ -7,6 +7,7 @@ import {
 import {
   callable,
   definePlugin,
+  routerHook,
   toaster,
 } from "@decky/api";
 import { useEffect, useState } from "react";
@@ -23,6 +24,7 @@ import {
   saveLocalSettings,
   searchLocalDatabase,
 } from "./localBackend";
+import { patchLibraryApp } from "./patchLibraryApp";
 import type { AppStatus, DatabaseStats, InjectionDiagnostics, PluginSettings, SearchResults } from "./types";
 
 const DEFAULT_SETTINGS: PluginSettings = {
@@ -324,6 +326,7 @@ const resultItemStyle = {
 export default definePlugin(() => {
   console.log("[POHRAI/NE HRAI] initializing");
 
+  const libraryPatch = patchLibraryApp(getResolvedAppStatus);
   startSteamUiInjection(getResolvedAppStatus, getLocalSettings());
 
   return {
@@ -332,6 +335,7 @@ export default definePlugin(() => {
     content: <Content />,
     icon: <FaFlag />,
     onDismount() {
+      routerHook.removePatch("/library/app/:appid", libraryPatch);
       stopSteamUiInjection();
     },
   };
