@@ -13,7 +13,6 @@ import {
   definePlugin,
   routerHook,
   toaster,
-  ServerAPI,
 } from "@decky/api";
 import { useEffect, useState } from "react";
 import { FaFlag } from "react-icons/fa";
@@ -44,6 +43,7 @@ const DEFAULT_SETTINGS: PluginSettings = {
 
 const getAppStatus = callable<[appid: string], AppStatus>("get_app_status");
 const getSettings = callable<[], PluginSettings>("get_settings");
+const saveSettings = callable<[{ settings: PluginSettings }], PluginSettings>("save_settings");
 const refreshDatabase = callable<[force: boolean], DatabaseStats>("refresh_database");
 const getDatabaseStats = callable<[], DatabaseStats>("get_database_stats");
 
@@ -137,12 +137,8 @@ function Content() {
       activeSettings = localSaved;
       setSettings(localSaved);
       updateSteamUiInjectionSettings(localSaved);
-      const callPromise = globalServerApi
-        ? (globalServerApi.callPluginMethod("save_settings", { settings: localSaved }) as Promise<PluginSettings>)
-        : Promise.reject(new Error("No ServerAPI"));
-
       const saved = await withTimeout(
-        callPromise,
+        saveSettings({ settings: localSaved }),
         BACKEND_TIMEOUT_MS,
         "save_settings"
       ).catch((e) => {
@@ -279,10 +275,7 @@ const fieldStyle = {
   fontSize: "13px",
 } as const;
 
-let globalServerApi: ServerAPI;
-
-export default definePlugin((serverApi: ServerAPI) => {
-  globalServerApi = serverApi;
+export default definePlugin(() => {
   console.log("[POHRAI/NE HRAI] initializing");
 
   const libraryPatch = patchLibraryApp(getResolvedAppStatus, () => activeSettings);

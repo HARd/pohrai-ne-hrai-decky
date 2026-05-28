@@ -102,6 +102,8 @@ class Plugin:
 
     async def save_settings(self, settings):
         await self._ensure_loaded()
+        if "settings" in settings and isinstance(settings["settings"], dict):
+            settings = settings["settings"]
         sanitized = {**DEFAULT_SETTINGS, **settings}
         try:
             sanitized["overlayOpacity"] = min(1.0, max(0.05, float(sanitized.get("overlayOpacity", 0.35))))
