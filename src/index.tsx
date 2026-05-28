@@ -21,6 +21,7 @@ import {
   getLocalAppStatus,
   getLocalDatabaseStats,
   getLocalSettings,
+  refreshLocalDatabaseFromRemote,
   saveLocalSettings,
   searchLocalDatabase,
 } from "./localBackend";
@@ -35,6 +36,8 @@ const DEFAULT_SETTINGS: PluginSettings = {
   ukrainianColor: "#27ae60",
   overlayOpacity: 0.35,
   showBadges: true,
+  remoteDatabaseEnabled: true,
+  remoteDatabaseUrl: "https://hrai-decky-default-rtdb.europe-west1.firebasedatabase.app/",
 };
 
 const getAppStatus = callable<[appid: string], AppStatus>("get_app_status");
@@ -72,6 +75,9 @@ function Content() {
     activeSettings = localSettings;
     setSettings(localSettings);
     setStats(getLocalDatabaseStats());
+    void refreshLocalDatabaseFromRemote(localSettings).then((nextStats) => {
+      if (mounted) setStats(nextStats);
+    });
     startSteamUiInjection(getResolvedAppStatus, localSettings, setDiagnostics);
 
     void Promise.all([
@@ -85,6 +91,9 @@ function Content() {
         setBackendError(null);
         setSettings(merged);
         setStats(loadedStats);
+        void refreshLocalDatabaseFromRemote(merged).then((nextStats) => {
+          if (mounted) setStats(nextStats);
+        });
         startSteamUiInjection(getAppStatus, merged, setDiagnostics);
       })
       .catch((error: unknown) => {
@@ -104,7 +113,9 @@ function Content() {
         setResults({ hostile: [], ukrainian: [] });
         return;
       }
-      setResults(searchLocalDatabase(query, 12));
+      const localResults = searchLocalDatabase(query, 12);
+      setResults(localResults);
+      if (activeSettings.remoteDatabaseEnabled) return;
       void withTimeout(searchDatabase(query, 12), BACKEND_TIMEOUT_MS, "search_database")
         .then(setResults)
         .catch(() => undefined);
@@ -131,6 +142,7 @@ function Content() {
       activeSettings = saved;
       setSettings(saved);
       updateSteamUiInjectionSettings(saved);
+      setStats(await refreshLocalDatabaseFromRemote(saved, true));
       refreshStorePatch();
       toaster.toast({ title: "POHRAI/NE HRAI", body: "Налаштування збережено" });
     } finally {
@@ -243,10 +255,32 @@ function Content() {
         <PanelSectionRow>
           <div style={mutedStyle}>
             {stats
-              ? `Версія ${stats.version}: ${stats.ukrainianCount} українських, ${stats.hostileCount} ворожих, кеш ${stats.cacheCount}`
+              ? `Версія ${stats.version}: ${stats.ukrainianCount} українських, ${stats.hostileCount} ворожих, кеш ${stats.cacheCount}, джерело ${stats.source === "remote" ? "Firebase" : "вбудована"}${stats.lastRemoteError ? `, Firebase: ${stats.lastRemoteError}` : ""}`
               : backendError
                 ? `Backend error: ${backendError}`
                 : "Завантаження бази..."}
+          </div>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <label style={rowStyle}>
+            <input
+              type="checkbox"
+              checked={settings.remoteDatabaseEnabled}
+              onChange={(event) => updateSetting("remoteDatabaseEnabled", event.currentTarget.checked)}
+            />
+            <span>Використовувати Firebase Realtime Database</span>
+          </label>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <div style={fieldStyle}>
+            <span>Firebase REST URL</span>
+            <input
+              style={searchStyle}
+              type="text"
+              value={settings.remoteDatabaseUrl}
+              placeholder="https://PROJECT-default-rtdb.REGION.firebasedatabase.app/pohrai-ne-hrai"
+              onChange={(event) => updateSetting("remoteDatabaseUrl", event.currentTarget.value)}
+            />
           </div>
         </PanelSectionRow>
         <PanelSectionRow>
@@ -359,6 +393,9 @@ export default definePlugin(() => {
 });
 
 async function getResolvedAppStatus(appid: string): Promise<AppStatus> {
+  if (activeSettings.remoteDatabaseEnabled) {
+    return getLocalAppStatus(appid).catch(() => withTimeout(getAppStatus(appid), BACKEND_TIMEOUT_MS, "get_app_status"));
+  }
   return withTimeout(getAppStatus(appid), BACKEND_TIMEOUT_MS, "get_app_status").catch(() => getLocalAppStatus(appid));
 }
 

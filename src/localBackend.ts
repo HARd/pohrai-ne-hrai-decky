@@ -9,11 +9,15 @@ const DEFAULT_SETTINGS: PluginSettings = {
   ukrainianColor: "#27ae60",
   overlayOpacity: 0.35,
   showBadges: true,
+  remoteDatabaseEnabled: true,
+  remoteDatabaseUrl: "https://hrai-decky-default-rtdb.europe-west1.firebasedatabase.app/",
 };
 
 const SETTINGS_KEY = "pohrai-ne-hrai-settings";
 const CACHE_KEY = "pohrai-ne-hrai-appdetails-cache";
+const REMOTE_DATABASE_CACHE_KEY = "pohrai-ne-hrai-remote-database-cache";
 const CACHE_TTL_MS = 14 * 24 * 60 * 60 * 1000;
+const REMOTE_DATABASE_TTL_MS = 60 * 60 * 1000;
 
 type CachedInfo = {
   developers: string[];
@@ -21,15 +25,35 @@ type CachedInfo = {
   fetchedAt: number;
 };
 
-const hostileSet = new Set<string>(developerDatabase.hostile);
-const ukrainianSet = new Set<string>(developerDatabase.ukrainian);
+type DeveloperDatabase = {
+  version: string;
+  source?: string;
+  hostile: readonly string[];
+  ukrainian: readonly string[];
+};
+
+type RemoteDatabaseCache = {
+  url: string;
+  fetchedAt: number;
+  database: DeveloperDatabase;
+};
+
+let activeDatabase: DeveloperDatabase = developerDatabase;
+let activeDatabaseSource: DatabaseStats["source"] = "bundled";
+let activeRemoteUrl = "";
+let lastRemoteError: string | null = null;
+let hostileSet = new Set<string>(activeDatabase.hostile);
+let ukrainianSet = new Set<string>(activeDatabase.ukrainian);
 
 export function getLocalDatabaseStats(): DatabaseStats {
   return {
-    version: developerDatabase.version,
-    hostileCount: developerDatabase.hostile.length,
-    ukrainianCount: developerDatabase.ukrainian.length,
+    version: activeDatabase.version,
+    hostileCount: activeDatabase.hostile.length,
+    ukrainianCount: activeDatabase.ukrainian.length,
     cacheCount: Object.keys(loadCache()).length,
+    source: activeDatabaseSource,
+    remoteUrl: activeRemoteUrl || undefined,
+    lastRemoteError,
   };
 }
 
@@ -58,9 +82,43 @@ export function searchLocalDatabase(query: string, limit = 40): SearchResults {
   if (!needle) return { hostile: [], ukrainian: [] };
   const cappedLimit = Math.max(1, Math.min(limit, 100));
   return {
-    hostile: developerDatabase.hostile.filter((name) => name.toLowerCase().includes(needle)).slice(0, cappedLimit),
-    ukrainian: developerDatabase.ukrainian.filter((name) => name.toLowerCase().includes(needle)).slice(0, cappedLimit),
+    hostile: activeDatabase.hostile.filter((name) => name.toLowerCase().includes(needle)).slice(0, cappedLimit),
+    ukrainian: activeDatabase.ukrainian.filter((name) => name.toLowerCase().includes(needle)).slice(0, cappedLimit),
   };
+}
+
+export async function refreshLocalDatabaseFromRemote(settings = getLocalSettings(), force = false): Promise<DatabaseStats> {
+  if (!settings.remoteDatabaseEnabled || !settings.remoteDatabaseUrl.trim()) {
+    setActiveDatabase(developerDatabase, "bundled", "");
+    lastRemoteError = null;
+    return getLocalDatabaseStats();
+  }
+
+  const url = toFirebaseJsonUrl(settings.remoteDatabaseUrl);
+  const cached = loadRemoteDatabaseCache();
+  if (!force && cached?.url === url && Date.now() - cached.fetchedAt < REMOTE_DATABASE_TTL_MS) {
+    setActiveDatabase(cached.database, "remote", url);
+    lastRemoteError = null;
+    return getLocalDatabaseStats();
+  }
+
+  try {
+    const response = await fetchNoCors(url, { method: "GET", credentials: "omit" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = validateDeveloperDatabase(await response.json());
+    saveRemoteDatabaseCache({ url, fetchedAt: Date.now(), database: payload });
+    setActiveDatabase(payload, "remote", url);
+    lastRemoteError = null;
+  } catch (error) {
+    lastRemoteError = error instanceof Error ? error.message : String(error);
+    if (cached?.url === url) {
+      setActiveDatabase(cached.database, "remote", url);
+    } else {
+      setActiveDatabase(developerDatabase, "bundled", "");
+    }
+  }
+
+  return getLocalDatabaseStats();
 }
 
 export async function getLocalAppStatus(appid: string): Promise<AppStatus> {
@@ -141,4 +199,57 @@ function loadCache(): Record<string, CachedInfo> {
 
 function saveCache(cache: Record<string, CachedInfo>): void {
   localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+}
+
+function setActiveDatabase(database: DeveloperDatabase, source: DatabaseStats["source"], remoteUrl: string): void {
+  activeDatabase = database;
+  activeDatabaseSource = source;
+  activeRemoteUrl = remoteUrl;
+  hostileSet = new Set(database.hostile);
+  ukrainianSet = new Set(database.ukrainian);
+}
+
+function validateDeveloperDatabase(payload: any): DeveloperDatabase {
+  if (!payload || !Array.isArray(payload.hostile) || !Array.isArray(payload.ukrainian)) {
+    throw new Error("Remote database must contain hostile[] and ukrainian[] arrays");
+  }
+
+  return {
+    version: String(payload.version || "remote"),
+    source: typeof payload.source === "string" ? payload.source : "Firebase Realtime Database",
+    hostile: payload.hostile.filter((name: unknown): name is string => typeof name === "string"),
+    ukrainian: payload.ukrainian.filter((name: unknown): name is string => typeof name === "string"),
+  };
+}
+
+function toFirebaseJsonUrl(input: string): string {
+  const trimmed = input.trim();
+  if (!trimmed) return "";
+  const [withoutHash] = trimmed.split("#");
+  if (withoutHash.endsWith(".json") || withoutHash.includes(".json?")) return trimmed;
+
+  try {
+    const url = new URL(withoutHash);
+    const path = url.pathname.replace(/\/+$/, "");
+    const jsonPath = path ? `${path}.json` : "/.json";
+    return `${url.origin}${jsonPath}${url.search}`;
+  } catch {
+    const [base, query] = withoutHash.split("?");
+    const normalizedBase = base.replace(/\/+$/, "");
+    return `${normalizedBase}.json${query ? `?${query}` : ""}`;
+  }
+}
+
+function loadRemoteDatabaseCache(): RemoteDatabaseCache | null {
+  const raw = localStorage.getItem(REMOTE_DATABASE_CACHE_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function saveRemoteDatabaseCache(cache: RemoteDatabaseCache): void {
+  localStorage.setItem(REMOTE_DATABASE_CACHE_KEY, JSON.stringify(cache));
 }

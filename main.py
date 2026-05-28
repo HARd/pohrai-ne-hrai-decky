@@ -3,6 +3,7 @@ import json
 import os
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 import decky
@@ -15,9 +16,12 @@ DEFAULT_SETTINGS = {
     "ukrainianColor": "#27ae60",
     "overlayOpacity": 0.35,
     "showBadges": True,
+    "remoteDatabaseEnabled": True,
+    "remoteDatabaseUrl": "https://hrai-decky-default-rtdb.europe-west1.firebasedatabase.app/",
 }
 
 CACHE_TTL_SECONDS = 60 * 60 * 24 * 14
+REMOTE_DATABASE_TTL_SECONDS = 60 * 60
 
 
 class Plugin:
@@ -35,8 +39,11 @@ class Plugin:
         self._database = self._load_database()
         self._settings = self._load_json(self._settings_path, DEFAULT_SETTINGS)
         self._cache = self._load_json(self._cache_path, {})
-        self._hostile_set = set(self._database.get("hostile", []))
-        self._ukrainian_set = set(self._database.get("ukrainian", []))
+        self._database_source = "bundled"
+        self._remote_database_url = ""
+        self._remote_database_fetched_at = 0
+        self._remote_database_error = None
+        await self._refresh_database()
         self._loaded = True
         decky.logger.info(f"POHRAI/NE HRAI loaded {len(self._hostile_set)} hostile and {len(self._ukrainian_set)} Ukrainian entries")
 
@@ -47,11 +54,15 @@ class Plugin:
 
     async def get_database_stats(self):
         await self._ensure_loaded()
+        await self._refresh_database()
         return {
             "version": self._database.get("version", "unknown"),
             "hostileCount": len(self._hostile_set),
             "ukrainianCount": len(self._ukrainian_set),
             "cacheCount": len(self._cache),
+            "source": self._database_source,
+            "remoteUrl": self._remote_database_url or None,
+            "lastRemoteError": self._remote_database_error,
         }
 
     async def get_settings(self):
@@ -62,8 +73,11 @@ class Plugin:
         await self._ensure_loaded()
         sanitized = {**DEFAULT_SETTINGS, **settings}
         sanitized["overlayOpacity"] = min(1, max(0.05, float(sanitized["overlayOpacity"])))
+        sanitized["remoteDatabaseEnabled"] = bool(sanitized.get("remoteDatabaseEnabled"))
+        sanitized["remoteDatabaseUrl"] = str(sanitized.get("remoteDatabaseUrl", "")).strip()
         self._settings = sanitized
         self._save_json(self._settings_path, self._settings)
+        await self._refresh_database(force=True)
         return self._settings
 
     async def get_app_status(self, appid):
@@ -158,6 +172,73 @@ class Plugin:
 
     def _load_database(self):
         return self._load_json(self._data_path, {"hostile": [], "ukrainian": []})
+
+    async def _refresh_database(self, force=False):
+        remote_enabled = self._settings.get("remoteDatabaseEnabled", False)
+        remote_url = str(self._settings.get("remoteDatabaseUrl", "")).strip()
+        if not remote_enabled or not remote_url:
+            self._set_database(self._load_database(), "bundled", "")
+            self._remote_database_error = None
+            return
+
+        url = self._firebase_json_url(remote_url)
+        fresh = (
+            not force
+            and self._database_source == "remote"
+            and self._remote_database_url == url
+            and time.time() - self._remote_database_fetched_at < REMOTE_DATABASE_TTL_SECONDS
+        )
+        if fresh:
+            return
+
+        try:
+            remote_database = await asyncio.to_thread(self._fetch_remote_database, url)
+            self._set_database(remote_database, "remote", url)
+            self._remote_database_fetched_at = time.time()
+            self._remote_database_error = None
+        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, ValueError) as exc:
+            decky.logger.warning("Failed to fetch remote database: %s", exc)
+            self._remote_database_error = str(exc)
+            if self._database_source != "remote":
+                self._set_database(self._load_database(), "bundled", "")
+
+    def _set_database(self, database, source, remote_url):
+        self._database = database
+        self._database_source = source
+        self._remote_database_url = remote_url
+        self._hostile_set = set(self._database.get("hostile", []))
+        self._ukrainian_set = set(self._database.get("ukrainian", []))
+
+    def _fetch_remote_database(self, url):
+        req = urllib.request.Request(url, headers={"User-Agent": "decky-pohrai-ne-hrai/0.2"})
+        with urllib.request.urlopen(req, timeout=12) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+
+        if not isinstance(payload, dict) or not isinstance(payload.get("hostile"), list) or not isinstance(payload.get("ukrainian"), list):
+            raise ValueError("Remote database must contain hostile[] and ukrainian[] arrays")
+
+        return {
+            "version": str(payload.get("version", "remote")),
+            "source": payload.get("source", "Firebase Realtime Database"),
+            "hostile": [name for name in payload.get("hostile", []) if isinstance(name, str)],
+            "ukrainian": [name for name in payload.get("ukrainian", []) if isinstance(name, str)],
+        }
+
+    def _firebase_json_url(self, url):
+        clean_url = url.split("#", 1)[0].strip()
+        if clean_url.endswith(".json") or ".json?" in clean_url:
+            return clean_url
+        parsed = urllib.parse.urlparse(clean_url)
+        path = parsed.path.rstrip("/")
+        json_path = f"{path}.json" if path else "/.json"
+        return urllib.parse.urlunparse((
+            parsed.scheme,
+            parsed.netloc,
+            json_path,
+            "",
+            parsed.query,
+            "",
+        ))
 
     def _load_json(self, path, fallback):
         try:

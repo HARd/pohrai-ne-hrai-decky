@@ -7,6 +7,8 @@ export interface PluginSettings {
   ukrainianColor: string;
   overlayOpacity: number;
   showBadges: boolean;
+  remoteDatabaseEnabled: boolean;
+  remoteDatabaseUrl: string;
 }
 
 export interface AppStatus {
@@ -25,6 +27,9 @@ export interface DatabaseStats {
   hostileCount: number;
   ukrainianCount: number;
   cacheCount: number;
+  source: "bundled" | "remote";
+  remoteUrl?: string;
+  lastRemoteError?: string | null;
 }
 
 export interface SearchResults {
