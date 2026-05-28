@@ -44,8 +44,8 @@ class Plugin:
         try:
             self._plugin_dir = os.path.dirname(os.path.realpath(__file__))
             self._data_path = os.path.join(self._plugin_dir, "data", "developers.json")
-            self._settings_path = os.path.join(decky.DECKY_SETTINGS_DIR, "settings.json")
-            self._cache_path = os.path.join(decky.DECKY_RUNTIME_DIR, "appdetails-cache.json")
+            self._settings_path = os.path.join(decky.DECKY_PLUGIN_SETTINGS_DIR, "settings.json")
+            self._cache_path = os.path.join(decky.DECKY_PLUGIN_RUNTIME_DIR, "appdetails-cache.json")
             self._lock = asyncio.Lock()
             self._database = self._load_database()
             self._settings = self._load_json(self._settings_path, DEFAULT_SETTINGS)
