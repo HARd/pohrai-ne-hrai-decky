@@ -67,6 +67,7 @@ const POSITION_OPTIONS: DropdownOption[] = [
 
 const BACKEND_TIMEOUT_MS = 1800;
 let activeSettings = getLocalSettings();
+let fetchedFromPython = false;
 
 function Content() {
   const [settings, setSettings] = useState<PluginSettings>(DEFAULT_SETTINGS);
@@ -77,23 +78,24 @@ function Content() {
 
   useEffect(() => {
     let mounted = true;
-    const localSettings = getLocalSettings();
-    activeSettings = localSettings;
-    setSettings(localSettings);
-    startSteamUiInjection(getResolvedAppStatus, localSettings);
+    setSettings(activeSettings);
+    startSteamUiInjection(getResolvedAppStatus, activeSettings);
 
-    void withTimeout(getSettings(), BACKEND_TIMEOUT_MS, "get_settings")
-      .then((loadedSettings) => {
-        if (!mounted) return;
-        const merged = { ...DEFAULT_SETTINGS, ...loadedSettings };
-        activeSettings = merged;
-        setSettings(merged);
-        startSteamUiInjection(getResolvedAppStatus, merged);
-      })
-      .catch(() => {
-        if (!mounted) return;
-        startSteamUiInjection(getResolvedAppStatus, localSettings);
-      });
+    if (!fetchedFromPython) {
+      void withTimeout(getSettings(), BACKEND_TIMEOUT_MS, "get_settings")
+        .then((loadedSettings) => {
+          fetchedFromPython = true;
+          if (!mounted) return;
+          const merged = { ...DEFAULT_SETTINGS, ...loadedSettings };
+          activeSettings = merged;
+          setSettings(merged);
+          saveLocalSettings(merged);
+          startSteamUiInjection(getResolvedAppStatus, merged);
+        })
+        .catch(() => {
+          fetchedFromPython = true;
+        });
+    }
 
     void withTimeout(getDatabaseStats(), BACKEND_TIMEOUT_MS, "get_database_stats")
       .then((s: any) => {
