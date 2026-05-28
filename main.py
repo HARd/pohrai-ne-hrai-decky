@@ -37,25 +37,30 @@ class Plugin:
             return
         self._loading = True
 
-        self._plugin_dir = os.path.dirname(os.path.realpath(__file__))
-        self._data_path = os.path.join(self._plugin_dir, "data", "developers.json")
-        self._settings_path = os.path.join(decky.DECKY_SETTINGS_DIR, "settings.json")
-        self._cache_path = os.path.join(decky.DECKY_RUNTIME_DIR, "appdetails-cache.json")
-        self._lock = asyncio.Lock()
-        self._database = self._load_database()
-        self._settings = self._load_json(self._settings_path, DEFAULT_SETTINGS)
-        self._cache = self._load_json(self._cache_path, {})
-        self._database_source = "bundled"
-        self._remote_database_url = ""
-        self._remote_database_fetched_at = 0
-        self._remote_database_error = None
-        self._set_database(self._database, "bundled", "")
+        try:
+            self._plugin_dir = os.path.dirname(os.path.realpath(__file__))
+            self._data_path = os.path.join(self._plugin_dir, "data", "developers.json")
+            self._settings_path = os.path.join(decky.DECKY_SETTINGS_DIR, "settings.json")
+            self._cache_path = os.path.join(decky.DECKY_RUNTIME_DIR, "appdetails-cache.json")
+            self._lock = asyncio.Lock()
+            self._database = self._load_database()
+            self._settings = self._load_json(self._settings_path, DEFAULT_SETTINGS)
+            self._cache = self._load_json(self._cache_path, {})
+            self._database_source = "bundled"
+            self._remote_database_url = ""
+            self._remote_database_fetched_at = 0
+            self._remote_database_error = None
+            self._set_database(self._database, "bundled", "")
 
-        self._loaded = True
-        self._loading = False
-        decky.logger.info(f"POHRAI/NE HRAI loaded {len(self._hostile_set)} hostile and {len(self._ukrainian_set)} Ukrainian entries")
+            self._loaded = True
+            decky.logger.info(f"POHRAI/NE HRAI loaded {len(self._hostile_set)} hostile and {len(self._ukrainian_set)} Ukrainian entries")
 
-        asyncio.create_task(self._refresh_database())
+            asyncio.create_task(self._refresh_database())
+        except Exception as e:
+            decky.logger.error(f"Failed to load Ne Hrai SD backend: {e}")
+            raise
+        finally:
+            self._loading = False
 
     async def _unload(self):
         await self._ensure_loaded()
@@ -118,7 +123,7 @@ class Plugin:
             if cached and time.time() - cached.get("fetchedAt", 0) < CACHE_TTL_SECONDS:
                 return self._mark_status(appid, cached.get("developers", []), cached.get("publishers", []))
 
-        details = await asyncio.to_thread(self._fetch_appdetails, appid)
+        details = await asyncio.get_event_loop().run_in_executor(None, self._fetch_appdetails, appid)
         if not details:
             return self._empty_status(appid)
 
@@ -183,7 +188,7 @@ class Plugin:
         try:
             with urllib.request.urlopen(req, timeout=12) as response:
                 payload = json.loads(response.read().decode("utf-8"))
-        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
+        except Exception as exc:
             decky.logger.warning("Failed to fetch appdetails for %s: %s", appid, exc)
             return None
 
@@ -226,11 +231,12 @@ class Plugin:
                 return
 
             try:
-                remote_database = await asyncio.to_thread(self._fetch_remote_database, url)
+                loop = asyncio.get_event_loop()
+                remote_database = await loop.run_in_executor(None, self._fetch_remote_database, url)
                 self._set_database(remote_database, "remote", url)
                 self._remote_database_fetched_at = time.time()
                 self._remote_database_error = None
-            except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, ValueError) as exc:
+            except Exception as exc:
                 decky.logger.warning("Failed to fetch remote database: %s", exc)
                 self._remote_database_error = str(exc)
                 if self._database_source != "remote":
@@ -280,7 +286,7 @@ class Plugin:
         try:
             with open(path, "r", encoding="utf-8") as handle:
                 return json.load(handle)
-        except (FileNotFoundError, json.JSONDecodeError):
+        except Exception:
             return fallback.copy() if isinstance(fallback, dict) else fallback
 
     def _save_json(self, path, data):
@@ -292,4 +298,4 @@ class Plugin:
         os.replace(tmp_path, path)
 
     async def _save_cache(self) -> None:
-        await asyncio.to_thread(self._save_json, self._cache_path, self._cache)
+        await asyncio.get_event_loop().run_in_executor(None, self._save_json, self._cache_path, self._cache)
