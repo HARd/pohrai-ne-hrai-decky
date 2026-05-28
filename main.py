@@ -118,9 +118,19 @@ class Plugin:
             
         sanitized["remoteDatabaseEnabled"] = bool(sanitized.get("remoteDatabaseEnabled", True))
         sanitized["remoteDatabaseUrl"] = str(sanitized.get("remoteDatabaseUrl", "")).strip()
+        
+        needs_refresh = False
+        if self._settings.get("remoteDatabaseEnabled") != sanitized["remoteDatabaseEnabled"]:
+            needs_refresh = True
+        if self._settings.get("remoteDatabaseUrl") != sanitized["remoteDatabaseUrl"]:
+            needs_refresh = True
+
         self._settings = sanitized
         self._save_json(self._settings_path, self._settings)
-        await self._refresh_database(force=True)
+        
+        if needs_refresh:
+            await self._refresh_database(force=True)
+            
         return self._settings
 
     async def refresh_database(self, force=True):

@@ -88,7 +88,6 @@ let fetchedFromPython = false;
 
 function Content() {
   const [settings, setSettings] = useState<PluginSettings>(DEFAULT_SETTINGS);
-  const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [db, setDb] = useState<DatabaseStats | null>(null);
   const [statsError, setStatsError] = useState<string | null>(null);
@@ -159,32 +158,11 @@ function Content() {
     updateSteamUiInjectionSettings(next);
     refreshStorePatch();
     window.dispatchEvent(new CustomEvent("pohrai-settings-changed"));
-  };
-
-  const persistSettings = async () => {
-    setSaving(true);
-    try {
-      const localSaved = saveLocalSettings(settings);
-      activeSettings = localSaved;
-      setSettings(localSaved);
-      updateSteamUiInjectionSettings(localSaved);
-      const saved = await withTimeout(
-        saveSettings({ settings: localSaved }),
-        BACKEND_TIMEOUT_MS,
-        "save_settings"
-      ).catch((e) => {
-        console.error("Failed to save settings to Python backend", e);
-        return localSaved;
-      });
-      activeSettings = saved;
-      setSettings(saved);
-      updateSteamUiInjectionSettings(saved);
-      refreshStorePatch();
-      window.dispatchEvent(new CustomEvent("pohrai-settings-changed"));
-      toaster.toast({ title: "POHRAI/NE HRAI", body: t(settings.language, "toast_saved") });
-    } finally {
-      setSaving(false);
-    }
+    
+    // Auto-save to Python backend in the background
+    void saveSettings({ settings: next }).catch((e) => {
+      console.error("Failed to auto-save settings to Python backend", e);
+    });
   };
 
   const forceRefresh = async () => {
@@ -248,7 +226,7 @@ function Content() {
           </div>
         </PanelSectionRow>
         <PanelSectionRow>
-          <ButtonItem layout="below" disabled={saving || syncing} onClick={forceRefresh}>
+          <ButtonItem layout="below" disabled={syncing} onClick={forceRefresh}>
             {syncing ? t(lang, "menu_refreshing") : t(lang, "menu_refresh_db")}
           </ButtonItem>
         </PanelSectionRow>
@@ -336,11 +314,6 @@ function Content() {
             selectedOption={settings.libraryBadgeStyle}
             onChange={(option) => updateSetting("libraryBadgeStyle", option.data as PluginSettings["libraryBadgeStyle"])}
           />
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <ButtonItem layout="below" disabled={saving || syncing} onClick={persistSettings}>
-            {saving ? t(lang, "menu_saving") : t(lang, "menu_save")}
-          </ButtonItem>
         </PanelSectionRow>
       </PanelSection>
     </>
