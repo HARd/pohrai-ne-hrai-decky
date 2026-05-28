@@ -27,7 +27,7 @@ DEFAULT_SETTINGS = {
     "libraryBadgePosition": "bottom-right",
     "libraryBadgeStyle": "text",
     "language": "uk",
-    "showReportButton": true,
+    "showReportButton": True,
     "lastSeenHostileCount": 0,
     "lastSeenUkrCount": 0,
 }
