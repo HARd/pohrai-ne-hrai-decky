@@ -51,6 +51,7 @@ class Plugin:
             self._data_path = os.path.join(self._plugin_dir, "data", "developers.json")
             self._settings_path = os.path.join(decky.DECKY_PLUGIN_SETTINGS_DIR, "settings.json")
             self._cache_path = os.path.join(decky.DECKY_PLUGIN_RUNTIME_DIR, "appdetails-cache.json")
+            self._db_cache_path = os.path.join(decky.DECKY_PLUGIN_RUNTIME_DIR, "database-cache.json")
             self._lock = asyncio.Lock()
             self._database = self._load_database()
             self._settings = self._load_json(self._settings_path, DEFAULT_SETTINGS)
@@ -218,6 +219,9 @@ class Plugin:
         }
 
     def _load_database(self):
+        cached = self._load_json(self._db_cache_path, None)
+        if cached is not None and isinstance(cached, dict) and "hostile" in cached:
+            return cached
         return self._load_json(self._data_path, {"hostile": [], "ukrainian": []})
 
     async def _refresh_database(self, force=False):
@@ -251,6 +255,7 @@ class Plugin:
                 self._set_database(remote_database, "remote", url)
                 self._remote_database_fetched_at = time.time()
                 self._remote_database_error = None
+                await loop.run_in_executor(None, self._save_json, self._db_cache_path, remote_database)
             except Exception as exc:
                 decky.logger.warning("Failed to fetch remote database: %s", exc)
                 self._remote_database_error = str(exc)

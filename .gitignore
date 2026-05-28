@@ -5,3 +5,4 @@ release/
 *.zip
 .DS_Store
 npm-debug.log*
+data/developers.json
