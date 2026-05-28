@@ -142,6 +142,26 @@ class Plugin:
             
         return self._settings
 
+    async def set_setting(self, key, value):
+        decky.logger.info(f"set_setting: {key} = {value}")
+        await self._ensure_loaded()
+        self._settings[key] = value
+        
+        try:
+            self._settings["overlayOpacity"] = min(1.0, max(0.05, float(self._settings.get("overlayOpacity", 0.35))))
+        except Exception:
+            self._settings["overlayOpacity"] = 0.35
+            
+        self._settings["remoteDatabaseEnabled"] = bool(self._settings.get("remoteDatabaseEnabled", True))
+        self._settings["remoteDatabaseUrl"] = str(self._settings.get("remoteDatabaseUrl", "")).strip()
+
+        self._save_json(self._settings_path, self._settings)
+        
+        if key in ["remoteDatabaseEnabled", "remoteDatabaseUrl"]:
+            await self._refresh_database(force=True)
+            
+        return self._settings
+
     async def refresh_database(self, force=True):
         await self._ensure_loaded()
         await self._refresh_database(force=force)

@@ -48,7 +48,7 @@ const DEFAULT_SETTINGS: PluginSettings = {
 
 const getAppStatus = callable<[appid: string], AppStatus>("get_app_status");
 const getSettings = callable<[], PluginSettings>("get_settings");
-const saveSettings = callable<[settings: PluginSettings], PluginSettings>("save_settings");
+const setSetting = callable<[key: string, value: any], PluginSettings>("set_setting");
 const refreshDatabase = callable<[force: boolean], DatabaseStats>("refresh_database");
 const getDatabaseStats = callable<[], DatabaseStats>("get_database_stats");
 
@@ -160,10 +160,10 @@ function Content() {
     window.dispatchEvent(new CustomEvent("pohrai-settings-changed"));
     
     // Auto-save to Python backend in the background
-    void saveSettings(next)
+    void setSetting(key, value)
       .then((s) => toaster.toast({ title: "Saved", body: `${key} = ${s[key]}` }))
       .catch((e) => {
-        console.error("Failed to auto-save settings to Python backend", e);
+        console.error("Failed to auto-save setting to Python backend", e);
         toaster.toast({ title: "POHRAI/NE HRAI", body: `Save error: ${e}` });
       });
   };
