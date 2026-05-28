@@ -11,7 +11,13 @@ type Props = {
 export default function GamePageBadge({ lookup, getSettings, placement = "library" }: Props) {
   const { appid } = useParams<{ appid: string }>();
   const [status, setStatus] = useState<AppStatus | null>(null);
-  const settings = getSettings();
+  const [settings, setLocalSettings] = useState(getSettings());
+
+  useEffect(() => {
+    const listener = () => setLocalSettings(getSettings());
+    window.addEventListener("pohrai-settings-changed", listener);
+    return () => window.removeEventListener("pohrai-settings-changed", listener);
+  }, [getSettings]);
 
   useEffect(() => {
     let cancelled = false;

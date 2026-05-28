@@ -120,6 +120,7 @@ function Content() {
     setSettings(next);
     updateSteamUiInjectionSettings(next);
     refreshStorePatch();
+    window.dispatchEvent(new CustomEvent("pohrai-settings-changed"));
   };
 
   const persistSettings = async () => {
@@ -134,6 +135,7 @@ function Content() {
       setSettings(saved);
       updateSteamUiInjectionSettings(saved);
       refreshStorePatch();
+      window.dispatchEvent(new CustomEvent("pohrai-settings-changed"));
       toaster.toast({ title: "POHRAI/NE HRAI", body: "Налаштування збережено" });
     } finally {
       setSaving(false);
