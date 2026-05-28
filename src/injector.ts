@@ -195,7 +195,7 @@ function applyStatus(container: HTMLElement, status: AppStatus): void {
   container.querySelectorAll<HTMLElement>(`.${OVERLAY_CLASS}, .${BADGE_CLASS}`).forEach((el) => el.remove());
 
   const color = status.type === "hostile" ? currentSettings.hostileColor : currentSettings.ukrainianColor;
-  const label = status.type === "hostile" ? "NE HRAI" : "POHRAI";
+  const label = status.type === "hostile" ? "Ne Hrai - Ворожий проект" : "Hrai - Дружній проект";
   const title = [...status.matches.hostile, ...status.matches.ukrainian].join(", ");
 
   const overlay = document.createElement("div");
@@ -256,7 +256,7 @@ function applyPageStatus(status: AppStatus): void {
   if (status.type === "ukrainian" && !currentSettings.markUkrainian) return;
 
   const color = status.type === "hostile" ? currentSettings.hostileColor : currentSettings.ukrainianColor;
-  const label = status.type === "hostile" ? "NE HRAI" : "POHRAI";
+  const label = status.type === "hostile" ? "Ne Hrai - Ворожий проект" : "Hrai - Дружній проект";
   const matches = [...status.matches.hostile, ...status.matches.ukrainian].join(", ");
   const badge = document.createElement("div");
   badge.className = `${PAGE_BADGE_CLASS} ${PAGE_BADGE_CLASS}-${status.type}`;

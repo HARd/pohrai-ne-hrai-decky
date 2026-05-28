@@ -24,7 +24,7 @@ import {
   saveLocalSettings,
   searchLocalDatabase,
 } from "./localBackend";
-import { patchLibraryApp } from "./patchLibraryApp";
+import { patchLibraryApp, patchStoreApp } from "./patchLibraryApp";
 import type { AppStatus, DatabaseStats, InjectionDiagnostics, PluginSettings, SearchResults } from "./types";
 
 const DEFAULT_SETTINGS: PluginSettings = {
@@ -177,7 +177,7 @@ function Content() {
         <PanelSectionRow>
           <div style={colorGridStyle}>
             <label style={fieldStyle}>
-              <span>NE HRAI</span>
+              <span>Ne Hrai</span>
               <input
                 type="color"
                 value={settings.hostileColor}
@@ -185,7 +185,7 @@ function Content() {
               />
             </label>
             <label style={fieldStyle}>
-              <span>POHRAI</span>
+              <span>Hrai</span>
               <input
                 type="color"
                 value={settings.ukrainianColor}
@@ -244,10 +244,10 @@ function Content() {
           />
         </PanelSectionRow>
         <PanelSectionRow>
-          <ResultList title="POHRAI" items={results.ukrainian} color={settings.ukrainianColor} />
+          <ResultList title="Hrai" items={results.ukrainian} color={settings.ukrainianColor} />
         </PanelSectionRow>
         <PanelSectionRow>
-          <ResultList title="NE HRAI" items={results.hostile} color={settings.hostileColor} />
+          <ResultList title="Ne Hrai" items={results.hostile} color={settings.hostileColor} />
         </PanelSectionRow>
       </PanelSection>
     </>
@@ -327,6 +327,7 @@ export default definePlugin(() => {
   console.log("[POHRAI/NE HRAI] initializing");
 
   const libraryPatch = patchLibraryApp(getResolvedAppStatus);
+  const storePatches = patchStoreApp(getResolvedAppStatus);
   startSteamUiInjection(getResolvedAppStatus, getLocalSettings());
 
   return {
@@ -336,6 +337,9 @@ export default definePlugin(() => {
     icon: <FaFlag />,
     onDismount() {
       routerHook.removePatch("/library/app/:appid", libraryPatch);
+      for (const { route, patch } of storePatches) {
+        routerHook.removePatch(route, patch);
+      }
       stopSteamUiInjection();
     },
   };

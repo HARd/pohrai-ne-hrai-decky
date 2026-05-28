@@ -4,9 +4,10 @@ import type { AppStatus } from "./types";
 
 type Props = {
   lookup: (appid: string) => Promise<AppStatus>;
+  placement?: "library" | "store";
 };
 
-export default function GamePageBadge({ lookup }: Props) {
+export default function GamePageBadge({ lookup, placement = "library" }: Props) {
   const { appid } = useParams<{ appid: string }>();
   const [status, setStatus] = useState<AppStatus | null>(null);
 
@@ -27,11 +28,11 @@ export default function GamePageBadge({ lookup }: Props) {
   if (!status?.type) return null;
 
   const color = status.type === "hostile" ? "#7a2a2a" : "#27ae60";
-  const label = status.type === "hostile" ? "NE HRAI" : "POHRAI";
+  const label = status.type === "hostile" ? "Ne Hrai - Ворожий проект" : "Hrai - Дружній проект";
   const matches = [...status.matches.hostile, ...status.matches.ukrainian].join(", ");
 
   return (
-    <div style={containerStyle}>
+    <div style={placement === "store" ? storeContainerStyle : libraryContainerStyle}>
       <div style={{ ...badgeStyle, backgroundColor: color }}>
         <strong>{label}</strong>
         {matches && <span style={matchStyle}>{matches}</span>}
@@ -40,7 +41,7 @@ export default function GamePageBadge({ lookup }: Props) {
   );
 }
 
-const containerStyle = {
+const libraryContainerStyle = {
   position: "absolute",
   top: "58px",
   right: "22px",
@@ -48,11 +49,19 @@ const containerStyle = {
   pointerEvents: "none",
 } as const;
 
+const storeContainerStyle = {
+  position: "fixed",
+  top: "72px",
+  right: "92px",
+  zIndex: 999999,
+  pointerEvents: "none",
+} as const;
+
 const badgeStyle = {
   display: "flex",
   alignItems: "center",
   gap: "8px",
-  maxWidth: "420px",
+  maxWidth: "520px",
   minHeight: "32px",
   padding: "7px 10px",
   borderRadius: "4px",
