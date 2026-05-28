@@ -25,6 +25,9 @@ DEFAULT_SETTINGS = {
     "remoteDatabaseUrl": "https://hrai-decky-default-rtdb.europe-west1.firebasedatabase.app/",
     "libraryBadgePosition": "bottom-right",
     "libraryBadgeStyle": "text",
+    "language": "uk",
+    "lastSeenHostileCount": 0,
+    "lastSeenUkrCount": 0,
 }
 
 CACHE_TTL_SECONDS = 60 * 60 * 24 * 14

@@ -2,6 +2,7 @@ import { useParams } from "@decky/ui";
 import { useEffect, useState } from "react";
 import type { AppStatus, PluginSettings } from "./types";
 import { UkrIcon, RusIcon } from "./icons";
+import { t } from "./i18n";
 
 type Props = {
   lookup: (appid: string) => Promise<AppStatus>;
@@ -39,7 +40,7 @@ export default function GamePageBadge({ lookup, getSettings, placement = "librar
   const isIcon = settings.libraryBadgeStyle === "icon";
   const iconSrc = status.type === "hostile" ? RusIcon : UkrIcon;
   const color = status.type === "hostile" ? settings.hostileColor : settings.ukrainianColor;
-  const label = status.type === "hostile" ? "Ворожий проект" : "Дружній проект";
+  const label = status.type === "hostile" ? t(settings.language, "badge_hostile") : t(settings.language, "badge_friendly");
   const matches = [...status.matches.hostile, ...status.matches.ukrainian].join(", ");
 
   const positionStyles = getLibraryPositionStyles(settings.libraryBadgePosition);

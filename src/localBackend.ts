@@ -11,6 +11,9 @@ const DEFAULT_SETTINGS: PluginSettings = {
   remoteDatabaseUrl: "https://hrai-decky-default-rtdb.europe-west1.firebasedatabase.app/",
   libraryBadgePosition: "bottom-right",
   libraryBadgeStyle: "text",
+  language: "uk",
+  lastSeenHostileCount: 0,
+  lastSeenUkrCount: 0,
 };
 
 const SETTINGS_KEY = "pohrai-ne-hrai-settings";

@@ -11,6 +11,9 @@ export interface PluginSettings {
   remoteDatabaseUrl: string;
   libraryBadgePosition: "top-left" | "top-right" | "bottom-left" | "bottom-right";
   libraryBadgeStyle: "text" | "icon";
+  language: "uk" | "en";
+  lastSeenHostileCount: number;
+  lastSeenUkrCount: number;
 }
 
 export interface AppStatus {
