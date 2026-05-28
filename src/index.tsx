@@ -73,8 +73,11 @@ function Content() {
       });
 
     void withTimeout(getDatabaseStats(), BACKEND_TIMEOUT_MS, "get_database_stats")
-      .then((s) => {
-        if (mounted) {
+      .then((s: any) => {
+        if (!mounted) return;
+        if (s && s.error) {
+          setStatsError(s.error);
+        } else {
           setStats(s);
           setStatsError(null);
         }

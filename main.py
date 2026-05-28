@@ -26,7 +26,11 @@ REMOTE_DATABASE_TTL_SECONDS = 60 * 60
 
 class Plugin:
     async def _main(self):
-        await self._ensure_loaded()
+        try:
+            await self._ensure_loaded()
+        except Exception as e:
+            import traceback
+            decky.logger.error(f"POHRAI/NE HRAI _main error:\n{traceback.format_exc()}")
 
     async def _ensure_loaded(self):
         if getattr(self, "_loaded", False):
@@ -68,16 +72,22 @@ class Plugin:
         self._save_json(self._settings_path, self._settings)
 
     async def get_database_stats(self):
-        await self._ensure_loaded()
-        return {
-            "version": self._database.get("version", "unknown"),
-            "hostileCount": len(self._hostile_set),
-            "ukrainianCount": len(self._ukrainian_set),
-            "cacheCount": len(self._cache),
-            "source": self._database_source,
-            "remoteUrl": self._remote_database_url or None,
-            "lastRemoteError": self._remote_database_error,
-        }
+        try:
+            await self._ensure_loaded()
+            return {
+                "version": self._database.get("version", "unknown"),
+                "hostileCount": len(self._hostile_set),
+                "ukrainianCount": len(self._ukrainian_set),
+                "cacheCount": len(self._cache),
+                "source": self._database_source,
+                "remoteUrl": self._remote_database_url or None,
+                "lastRemoteError": self._remote_database_error,
+            }
+        except Exception as e:
+            import traceback
+            err_trace = traceback.format_exc()
+            decky.logger.error(f"POHRAI/NE HRAI get_database_stats error:\n{err_trace}")
+            return {"error": err_trace}
 
     async def get_settings(self):
         await self._ensure_loaded()
