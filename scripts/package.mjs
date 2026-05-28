@@ -18,7 +18,6 @@ mkdirSync(stagingDir, { recursive: true });
 for (const item of [
   "LICENSE",
   "README.md",
-  "data",
   "dist",
   "main.py",
   "plugin.json",
