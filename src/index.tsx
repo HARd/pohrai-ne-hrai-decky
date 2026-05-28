@@ -24,7 +24,8 @@ import {
   saveLocalSettings,
   searchLocalDatabase,
 } from "./localBackend";
-import { patchLibraryApp, patchStoreApp } from "./patchLibraryApp";
+import { patchLibraryApp } from "./patchLibraryApp";
+import { initStorePatch, refreshStorePatch } from "./storePatch";
 import type { AppStatus, DatabaseStats, InjectionDiagnostics, PluginSettings, SearchResults } from "./types";
 
 const DEFAULT_SETTINGS: PluginSettings = {
@@ -43,6 +44,7 @@ const getDatabaseStats = callable<[], DatabaseStats>("get_database_stats");
 const searchDatabase = callable<[query: string, limit?: number], SearchResults>("search_database");
 
 const BACKEND_TIMEOUT_MS = 1800;
+let activeSettings = getLocalSettings();
 
 const EMPTY_DIAGNOSTICS: InjectionDiagnostics = {
   scans: 0,
@@ -67,6 +69,7 @@ function Content() {
   useEffect(() => {
     let mounted = true;
     const localSettings = getLocalSettings();
+    activeSettings = localSettings;
     setSettings(localSettings);
     setStats(getLocalDatabaseStats());
     startSteamUiInjection(getResolvedAppStatus, localSettings, setDiagnostics);
@@ -78,6 +81,7 @@ function Content() {
       .then(([loadedSettings, loadedStats]) => {
         if (!mounted) return;
         const merged = { ...DEFAULT_SETTINGS, ...loadedSettings };
+        activeSettings = merged;
         setBackendError(null);
         setSettings(merged);
         setStats(loadedStats);
@@ -110,19 +114,24 @@ function Content() {
 
   const updateSetting = <K extends keyof PluginSettings>(key: K, value: PluginSettings[K]) => {
     const next = { ...settings, [key]: value };
+    activeSettings = next;
     setSettings(next);
     updateSteamUiInjectionSettings(next);
+    refreshStorePatch();
   };
 
   const persistSettings = async () => {
     setSaving(true);
     try {
       const localSaved = saveLocalSettings(settings);
+      activeSettings = localSaved;
       setSettings(localSaved);
       updateSteamUiInjectionSettings(localSaved);
       const saved = await withTimeout(saveSettings(localSaved), BACKEND_TIMEOUT_MS, "save_settings").catch(() => localSaved);
+      activeSettings = saved;
       setSettings(saved);
       updateSteamUiInjectionSettings(saved);
+      refreshStorePatch();
       toaster.toast({ title: "POHRAI/NE HRAI", body: "Налаштування збережено" });
     } finally {
       setSaving(false);
@@ -333,7 +342,7 @@ export default definePlugin(() => {
   console.log("[POHRAI/NE HRAI] initializing");
 
   const libraryPatch = patchLibraryApp(getResolvedAppStatus);
-  const storePatches = patchStoreApp(getResolvedAppStatus);
+  const stopStorePatch = initStorePatch(getResolvedAppStatus, () => activeSettings);
   startSteamUiInjection(getResolvedAppStatus, getLocalSettings());
 
   return {
@@ -343,9 +352,7 @@ export default definePlugin(() => {
     icon: <FaFlag />,
     onDismount() {
       routerHook.removePatch("/library/app/:appid", libraryPatch);
-      for (const { route, patch } of storePatches) {
-        routerHook.removePatch(route, patch);
-      }
+      stopStorePatch();
       stopSteamUiInjection();
     },
   };
