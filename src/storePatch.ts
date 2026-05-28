@@ -80,12 +80,11 @@ async function injectBadgeIntoStore(appid: string) {
         badge.textContent = ${JSON.stringify(payload.label)};
         badge.style.cssText = [
           'position: fixed',
-          'left: 50%',
+          'left: 22px',
           'bottom: 22px',
-          'transform: translateX(-50%)',
           'z-index: 999999',
           'box-sizing: border-box',
-          'max-width: calc(100vw - 48px)',
+          'max-width: min(360px, calc(100vw - 44px))',
           'padding: 8px 16px',
           'border-radius: 8px',
           'border: 1px solid ${payload.border}',
