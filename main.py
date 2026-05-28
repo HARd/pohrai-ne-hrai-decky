@@ -263,7 +263,8 @@ class Plugin:
 
             try:
                 loop = asyncio.get_event_loop()
-                remote_database = await loop.run_in_executor(None, self._fetch_remote_database, url)
+                base_url = url.split(".json")[0].rstrip("/")
+                remote_database = await loop.run_in_executor(None, self._fetch_remote_database, base_url)
                 self._set_database(remote_database, "remote", url)
                 self._remote_database_fetched_at = time.time()
                 self._remote_database_error = None
@@ -283,19 +284,27 @@ class Plugin:
         self._hostile_set = set(self._database.get("hostile", []))
         self._ukrainian_set = set(self._database.get("ukrainian", []))
 
-    def _fetch_remote_database(self, url):
-        req = urllib.request.Request(url, headers={"User-Agent": "decky-pohrai-ne-hrai/0.2"})
-        with urllib.request.urlopen(req, timeout=12, context=SSL_CONTEXT) as response:
-            payload = json.loads(response.read().decode("utf-8"))
+    def _fetch_remote_database(self, base_url):
+        def fetch_node(node):
+            req = urllib.request.Request(f"{base_url}/{node}.json", headers={"User-Agent": "decky-pohrai-ne-hrai/0.2"})
+            try:
+                with urllib.request.urlopen(req, timeout=12, context=SSL_CONTEXT) as response:
+                    return json.loads(response.read().decode("utf-8")) or []
+            except Exception:
+                return []
 
-        if not isinstance(payload, dict) or not isinstance(payload.get("hostile"), list) or not isinstance(payload.get("ukrainian"), list):
+        hostile = fetch_node("hostile")
+        ukrainian = fetch_node("ukrainian")
+        version = fetch_node("version")
+        
+        if not isinstance(hostile, list) or not isinstance(ukrainian, list):
             raise ValueError("Remote database must contain hostile[] and ukrainian[] arrays")
 
         return {
-            "version": str(payload.get("version", "remote")),
-            "source": payload.get("source", "Firebase Realtime Database"),
-            "hostile": [name for name in payload.get("hostile", []) if isinstance(name, str)],
-            "ukrainian": [name for name in payload.get("ukrainian", []) if isinstance(name, str)],
+            "version": str(version if isinstance(version, str) else "remote"),
+            "source": "Firebase Realtime Database",
+            "hostile": [name for name in hostile if isinstance(name, str)],
+            "ukrainian": [name for name in ukrainian if isinstance(name, str)],
         }
 
     def _firebase_json_url(self, url):
