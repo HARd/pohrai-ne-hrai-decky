@@ -38,6 +38,7 @@ const DEFAULT_SETTINGS: PluginSettings = {
   showBadges: true,
   remoteDatabaseEnabled: true,
   remoteDatabaseUrl: "https://hrai-decky-default-rtdb.europe-west1.firebasedatabase.app/",
+  libraryBadgePosition: "bottom-right",
 };
 
 const getAppStatus = callable<[appid: string], AppStatus>("get_app_status");
@@ -56,6 +57,12 @@ const COLOR_OPTIONS: DropdownOption[] = [
   { data: "#8e44ad", label: "Фіолетовий" },
   { data: "#2c3e50", label: "Темно-синій" },
   { data: "#bdc3c7", label: "Світло-сірий" },
+];
+const POSITION_OPTIONS: DropdownOption[] = [
+  { data: "top-left", label: "Верхній лівий кут" },
+  { data: "top-right", label: "Верхній правий кут" },
+  { data: "bottom-left", label: "Нижній лівий кут" },
+  { data: "bottom-right", label: "Нижній правий кут" },
 ];
 
 const BACKEND_TIMEOUT_MS = 1800;
@@ -227,6 +234,14 @@ function Content() {
           />
         </PanelSectionRow>
         <PanelSectionRow>
+          <DropdownItem
+            menuLabel="Позиція плашки в картці гри"
+            rgOptions={POSITION_OPTIONS}
+            selectedOption={settings.libraryBadgePosition}
+            onChange={(option) => updateSetting("libraryBadgePosition", option.data as PluginSettings["libraryBadgePosition"])}
+          />
+        </PanelSectionRow>
+        <PanelSectionRow>
           <ButtonItem layout="below" disabled={saving || syncing} onClick={persistSettings}>
             {saving ? "Збереження..." : "Зберегти"}
           </ButtonItem>
@@ -247,7 +262,7 @@ const fieldStyle = {
 export default definePlugin(() => {
   console.log("[POHRAI/NE HRAI] initializing");
 
-  const libraryPatch = patchLibraryApp(getResolvedAppStatus);
+  const libraryPatch = patchLibraryApp(getResolvedAppStatus, () => activeSettings);
   const stopStorePatch = initStorePatch(getResolvedAppStatus, () => activeSettings);
   startSteamUiInjection(getResolvedAppStatus, getLocalSettings());
 

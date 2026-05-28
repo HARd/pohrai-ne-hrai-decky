@@ -8,11 +8,12 @@ import { routerHook } from "@decky/api";
 import type { ReactElement } from "react";
 import type { RouteProps } from "react-router";
 import GamePageBadge from "./GamePageBadge";
-import type { AppStatus } from "./types";
+import type { AppStatus, PluginSettings } from "./types";
 
 type Lookup = (appid: string) => Promise<AppStatus>;
+type SettingsGetter = () => PluginSettings;
 
-export function patchLibraryApp(lookup: Lookup) {
+export function patchLibraryApp(lookup: Lookup, getSettings: SettingsGetter) {
   return routerHook.addPatch("/library/app/:appid", (tree: RouteProps) => {
     const routeProps = findInReactTree(tree, (node: any) => node?.renderFunc);
     if (!routeProps) return tree;
@@ -39,7 +40,7 @@ export function patchLibraryApp(lookup: Lookup) {
           (child: ReactElement) => child?.type === GamePageBadge,
         );
         if (!alreadyInserted) {
-          container.props.children.splice(1, 0, <GamePageBadge lookup={lookup} />);
+          container.props.children.splice(1, 0, <GamePageBadge lookup={lookup} getSettings={getSettings} />);
         }
 
         return ret;

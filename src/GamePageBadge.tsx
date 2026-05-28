@@ -1,15 +1,17 @@
 import { useParams } from "@decky/ui";
 import { useEffect, useState } from "react";
-import type { AppStatus } from "./types";
+import type { AppStatus, PluginSettings } from "./types";
 
 type Props = {
   lookup: (appid: string) => Promise<AppStatus>;
+  getSettings: () => PluginSettings;
   placement?: "library" | "store";
 };
 
-export default function GamePageBadge({ lookup, placement = "library" }: Props) {
+export default function GamePageBadge({ lookup, getSettings, placement = "library" }: Props) {
   const { appid } = useParams<{ appid: string }>();
   const [status, setStatus] = useState<AppStatus | null>(null);
+  const settings = getSettings();
 
   useEffect(() => {
     let cancelled = false;
@@ -31,14 +33,31 @@ export default function GamePageBadge({ lookup, placement = "library" }: Props) 
   const label = status.type === "hostile" ? "Ворожий проект" : "Дружній проект";
   const matches = [...status.matches.hostile, ...status.matches.ukrainian].join(", ");
 
+  const positionStyles = getLibraryPositionStyles(settings.libraryBadgePosition);
+  const containerStyle = placement === "store" ? storeContainerStyle : { ...libraryContainerStyle, ...positionStyles };
+
   return (
-    <div style={placement === "store" ? storeContainerStyle : libraryContainerStyle}>
+    <div style={containerStyle}>
       <div style={{ ...badgeStyle, backgroundColor: color }}>
         <strong>{label}</strong>
         {matches && <span style={matchStyle}>{matches}</span>}
       </div>
     </div>
   );
+}
+
+function getLibraryPositionStyles(pos: string) {
+  switch (pos) {
+    case "top-left":
+      return { top: "58px", left: "22px", right: "auto" };
+    case "top-right":
+      return { top: "58px", right: "22px", left: "auto" };
+    case "bottom-left":
+      return { top: "330px", left: "22px", right: "auto" };
+    case "bottom-right":
+    default:
+      return { top: "330px", right: "22px", left: "auto" };
+  }
 }
 
 const libraryContainerStyle = {
