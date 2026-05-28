@@ -148,6 +148,7 @@ function collectCandidates(): HTMLElement[] {
     "[class*='salepreviewwidgets_']",
     "[class*='SearchItem']",
     "[class*='store_']",
+    ".search_result_row",
   ];
   return Array.from(document.querySelectorAll<HTMLElement>(selectors.join(",")))
     .filter((el) => !isInsideDecky(el) && !isInsideOverlay(el));
@@ -337,7 +338,7 @@ function findAppidInUnknown(value: unknown, depth: number): string | null {
   if (typeof value !== "object") return null;
 
   const record = value as Record<string, unknown>;
-  for (const key of ["appid", "appID", "appId", "unAppID", "nAppID", "app_id"]) {
+  for (const key of ["appid", "appID", "appId", "unAppID", "nAppID", "app_id", "id", "store_item_id", "item_id"]) {
     const raw = record[key];
     if ((typeof raw === "number" || typeof raw === "string") && /^\d+$/.test(String(raw))) {
       return String(raw);
@@ -390,7 +391,7 @@ function injectStyles(currentSettings: PluginSettings): void {
       position: absolute;
       top: 6px;
       right: 6px;
-      z-index: 51;
+      z-index: 99999;
       pointer-events: none;
       display: flex;
       align-items: center;
