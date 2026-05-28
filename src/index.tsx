@@ -164,10 +164,8 @@ function Content() {
     
     // Auto-save to Python backend in the background
     void setSetting({ key: key as string, value })
-      .then((s) => toaster.toast({ title: "Saved", body: `${key} = ${s[key]}` }))
       .catch((e) => {
         console.error("Failed to auto-save setting to Python backend", e);
-        toaster.toast({ title: "POHRAI/NE HRAI", body: `Save error: ${e}` });
       });
   };
 
@@ -244,21 +242,9 @@ function Content() {
         <PanelSectionRow>
           <div style={fieldStyle}>
             <ButtonItem layout="below" disabled={syncing} onClick={forceRefresh}>
-              {syncing ? t(lang, "menu_refreshing") : t(lang, "menu_refresh_db")}
+              {syncing ? t(lang, "loading") : t(lang, "menu_refresh_db")}
             </ButtonItem>
           </div>
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <ButtonItem layout="below" onClick={async () => {
-            try {
-              const s = await getSettings();
-              toaster.toast({ title: "Debug", body: `H.Color: ${s.hostileColor}, U.Color: ${s.ukrainianColor}` });
-            } catch (e) {
-              toaster.toast({ title: "Debug Error", body: String(e) });
-            }
-          }}>
-            Debug Settings
-          </ButtonItem>
         </PanelSectionRow>
       </PanelSection>
 
