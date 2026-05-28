@@ -50,6 +50,7 @@ function Content() {
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [stats, setStats] = useState<DatabaseStats | null>(null);
+  const [statsError, setStatsError] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -72,8 +73,15 @@ function Content() {
       });
 
     void withTimeout(getDatabaseStats(), BACKEND_TIMEOUT_MS, "get_database_stats")
-      .then((s) => mounted && setStats(s))
-      .catch(() => {});
+      .then((s) => {
+        if (mounted) {
+          setStats(s);
+          setStatsError(null);
+        }
+      })
+      .catch((err) => {
+        if (mounted) setStatsError(String(err));
+      });
 
     return () => {
       mounted = false;
@@ -124,7 +132,9 @@ function Content() {
       <PanelSection title="Інформація про базу">
         <PanelSectionRow>
           <div style={fieldStyle}>
-            {stats ? (
+            {statsError ? (
+              <span style={{ color: "#e74c3c" }}>Помилка завантаження бекенду: {statsError}</span>
+            ) : stats ? (
               <>
                 <span>Джерело: {stats.source === "remote" ? "Хмарна база" : "Вбудована база"}</span>
                 <span>Версія: {stats.version}</span>
