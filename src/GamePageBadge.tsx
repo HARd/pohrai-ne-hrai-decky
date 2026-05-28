@@ -59,10 +59,10 @@ function getLibraryPositionStyles(pos: string) {
     case "top-right":
       return { top: "58px", right: "22px", left: "auto" };
     case "bottom-left":
-      return { top: "270px", left: "22px", right: "auto" };
+      return { top: "220px", left: "22px", right: "auto" };
     case "bottom-right":
     default:
-      return { top: "270px", right: "22px", left: "auto" };
+      return { top: "220px", right: "22px", left: "auto" };
   }
 }
 
