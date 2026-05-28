@@ -117,6 +117,11 @@ function Content() {
   const updateSetting = <K extends keyof PluginSettings>(key: K, value: PluginSettings[K]) => {
     const next = { ...settings, [key]: value };
     activeSettings = next;
+    
+    // Immediately save to localStorage to survive component unmounts 
+    // (Decky DropdownItem pushes a new view and unmounts Content)
+    saveLocalSettings(next);
+    
     setSettings(next);
     updateSteamUiInjectionSettings(next);
     refreshStorePatch();
