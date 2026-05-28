@@ -82,7 +82,7 @@ function getStyleOptions(lang: "uk" | "en") {
   ];
 }
 
-const BACKEND_TIMEOUT_MS = 1800;
+const BACKEND_TIMEOUT_MS = 5000;
 let activeSettings = getLocalSettings();
 let fetchedFromPython = false;
 
