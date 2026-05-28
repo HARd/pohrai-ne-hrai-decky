@@ -43,7 +43,7 @@ const DEFAULT_SETTINGS: PluginSettings = {
 
 const getAppStatus = callable<[appid: string], AppStatus>("get_app_status");
 const getSettings = callable<[], PluginSettings>("get_settings");
-const saveSettings = callable<[settings: PluginSettings], PluginSettings>("save_settings");
+const saveSettings = callable<[{settings: PluginSettings}], PluginSettings>("save_settings");
 const refreshDatabase = callable<[force: boolean], DatabaseStats>("refresh_database");
 const getDatabaseStats = callable<[], DatabaseStats>("get_database_stats");
 
@@ -130,7 +130,11 @@ function Content() {
       activeSettings = localSaved;
       setSettings(localSaved);
       updateSteamUiInjectionSettings(localSaved);
-      const saved = await withTimeout(saveSettings(localSaved), BACKEND_TIMEOUT_MS, "save_settings").catch(() => localSaved);
+      const saved = await withTimeout(
+        saveSettings({ settings: localSaved }),
+        BACKEND_TIMEOUT_MS,
+        "save_settings"
+      ).catch(() => localSaved);
       activeSettings = saved;
       setSettings(saved);
       updateSteamUiInjectionSettings(saved);
