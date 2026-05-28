@@ -7,6 +7,7 @@ type DiagnosticsListener = (diagnostics: InjectionDiagnostics) => void;
 const STYLE_ID = "pohrai-ne-hrai-style";
 const OVERLAY_CLASS = "pohrai-ne-hrai-overlay";
 const BADGE_CLASS = "pohrai-ne-hrai-badge";
+const BADGE_MINI_CLASS = "pohrai-ne-hrai-badge-mini";
 const PAGE_BADGE_CLASS = "pohrai-ne-hrai-page-badge";
 const SCANNED_ATTR = "data-pohrai-scanned-appid";
 
@@ -54,7 +55,7 @@ export function updateSteamUiInjectionSettings(nextSettings: PluginSettings): vo
   settings = nextSettings;
   injectStyles(nextSettings);
   document.querySelectorAll<HTMLElement>(`.${OVERLAY_CLASS}`).forEach((el) => el.remove());
-  document.querySelectorAll<HTMLElement>(`.${BADGE_CLASS}`).forEach((el) => el.remove());
+  document.querySelectorAll<HTMLElement>(`.${BADGE_CLASS}, .${BADGE_MINI_CLASS}`).forEach((el) => el.remove());
   document.querySelectorAll<HTMLElement>(`[${SCANNED_ATTR}]`).forEach((el) => el.removeAttribute(SCANNED_ATTR));
   scanSoon();
 }
@@ -69,7 +70,7 @@ export function stopSteamUiInjection(): void {
   statusCache.clear();
   window.clearTimeout(scanTimer);
   document.getElementById(STYLE_ID)?.remove();
-  document.querySelectorAll<HTMLElement>(`.${OVERLAY_CLASS}, .${BADGE_CLASS}, .${PAGE_BADGE_CLASS}`).forEach((el) => el.remove());
+  document.querySelectorAll<HTMLElement>(`.${OVERLAY_CLASS}, .${BADGE_CLASS}, .${BADGE_MINI_CLASS}, .${PAGE_BADGE_CLASS}`).forEach((el) => el.remove());
   document.querySelectorAll<HTMLElement>(`[${SCANNED_ATTR}]`).forEach((el) => el.removeAttribute(SCANNED_ATTR));
 }
 
@@ -142,6 +143,11 @@ function collectCandidates(): HTMLElement[] {
     "[class*='libraryassetimage']",
     "[class*='appgrid']",
     "[class*='gamepadhomerecentgames']",
+    "[class*='StoreAppCapsule']",
+    "[class*='StoreSaleWidgetContainer']",
+    "[class*='salepreviewwidgets_']",
+    "[class*='SearchItem']",
+    "[class*='store_']",
   ];
   return Array.from(document.querySelectorAll<HTMLElement>(selectors.join(",")))
     .filter((el) => !isInsideDecky(el) && !isInsideOverlay(el));
@@ -164,7 +170,7 @@ function getAppid(el: HTMLElement): string | null {
 
 function findCardContainer(el: HTMLElement): HTMLElement | null {
   const preferred = el.closest<HTMLElement>(
-    "[data-ds-appid], [data-app-id], [data-appid], [data-app-id-number], .appportrait, .basicgamecarousel_CarouselGameLabelWrapper, .libraryassetimage_Container, .gamepadhomerecentgames_RecentGame, .appgrid_AppGridItem, .search_result_row, .wishlist_row, [class*='appportrait'], [class*='libraryassetimage'], [class*='appgrid']"
+    "[data-ds-appid], [data-app-id], [data-appid], [data-app-id-number], .appportrait, .basicgamecarousel_CarouselGameLabelWrapper, .libraryassetimage_Container, .gamepadhomerecentgames_RecentGame, .appgrid_AppGridItem, .search_result_row, .wishlist_row, [class*='appportrait'], [class*='libraryassetimage'], [class*='appgrid'], [class*='StoreAppCapsule'], [class*='StoreSaleWidgetContainer'], [class*='salepreviewwidgets_'], [class*='SearchItem'], [class*='store_StoreItemCard_']"
   );
   if (preferred) return preferred;
 
@@ -194,7 +200,7 @@ function applyStatus(container: HTMLElement, status: AppStatus): void {
   if (status.type === "hostile" && !currentSettings.markHostile) return;
   if (status.type === "ukrainian" && !currentSettings.markUkrainian) return;
 
-  container.querySelectorAll<HTMLElement>(`.${OVERLAY_CLASS}, .${BADGE_CLASS}`).forEach((el) => el.remove());
+  container.querySelectorAll<HTMLElement>(`.${OVERLAY_CLASS}, .${BADGE_CLASS}, .${BADGE_MINI_CLASS}`).forEach((el) => el.remove());
 
   const color = status.type === "hostile" ? currentSettings.hostileColor : currentSettings.ukrainianColor;
   const label = status.type === "hostile" ? "Ворожий проект" : "Дружній проект";
@@ -212,10 +218,19 @@ function applyStatus(container: HTMLElement, status: AppStatus): void {
   container.appendChild(overlay);
 
   if (currentSettings.showBadges) {
+    const isStore = Boolean(container.closest("[class*='StoreAppCapsule'], [class*='StoreSaleWidgetContainer'], [class*='salepreviewwidgets_'], [class*='SearchItem'], [class*='store_'], .search_result_row"));
     const badge = document.createElement("div");
-    badge.className = `${BADGE_CLASS} ${BADGE_CLASS}-${status.type}`;
-    badge.style.background = color;
-    badge.textContent = label;
+    
+    if (isStore) {
+      badge.className = `${BADGE_MINI_CLASS} ${BADGE_MINI_CLASS}-${status.type}`;
+      badge.style.background = color;
+      badge.textContent = status.type === "hostile" ? "⚠️" : "🇺🇦";
+    } else {
+      badge.className = `${BADGE_CLASS} ${BADGE_CLASS}-${status.type}`;
+      badge.style.background = color;
+      badge.textContent = label;
+    }
+    
     badge.title = title;
     container.appendChild(badge);
   }
@@ -371,6 +386,23 @@ function injectStyles(currentSettings: PluginSettings): void {
     .${BADGE_CLASS}-hostile {
       color: ${contrastText(currentSettings.hostileColor)};
     }
+    .${BADGE_MINI_CLASS} {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      z-index: 51;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      font-size: 13px;
+      line-height: 1;
+      border-radius: 50%;
+      box-shadow: 0 2px 8px rgba(0,0,0,.45);
+      border: 1px solid rgba(255,255,255,0.2);
+    }
     .${PAGE_BADGE_CLASS} {
       position: fixed;
       top: 64px;
@@ -406,7 +438,7 @@ function isInsideDecky(el: HTMLElement): boolean {
 }
 
 function isInsideOverlay(el: HTMLElement): boolean {
-  return Boolean(el.closest(`.${OVERLAY_CLASS}, .${BADGE_CLASS}, .${PAGE_BADGE_CLASS}`));
+  return Boolean(el.closest(`.${OVERLAY_CLASS}, .${BADGE_CLASS}, .${BADGE_MINI_CLASS}, .${PAGE_BADGE_CLASS}`));
 }
 
 function emitDiagnostics(): void {

@@ -43,7 +43,7 @@ export default function GamePageBadge({ lookup, placement = "library" }: Props) 
 
 const libraryContainerStyle = {
   position: "absolute",
-  top: "300px",
+  top: "330px",
   right: "22px",
   zIndex: 20,
   pointerEvents: "none",
