@@ -161,7 +161,7 @@ function Content() {
     
     // Auto-save to Python backend in the background
     void saveSettings(next)
-      .then(() => toaster.toast({ title: "POHRAI/NE HRAI", body: `Settings saved: ${key}` }))
+      .then((s) => toaster.toast({ title: "Saved", body: JSON.stringify(s).slice(0, 100) }))
       .catch((e) => {
         console.error("Failed to auto-save settings to Python backend", e);
         toaster.toast({ title: "POHRAI/NE HRAI", body: `Save error: ${e}` });
