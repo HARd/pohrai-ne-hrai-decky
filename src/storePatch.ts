@@ -248,6 +248,12 @@ async function connectToStoreDebugger(retries = 5): Promise<void> {
       return;
     }
 
+    if (storeWebSocket) {
+      storeWebSocket.onclose = null;
+      storeWebSocket.close();
+      storeWebSocket = null;
+    }
+
     updateAppIdFromUrl(storeTab.url);
     storeWebSocket = new WebSocket(storeTab.webSocketDebuggerUrl);
 
@@ -347,14 +353,19 @@ export function refreshStorePatch() {
   }
 }
 
-export function initStorePatch(lookup: Lookup, getSettings: SettingsGetter): () => void {
+export function initStorePatch(lookup: Lookup, settingsGetter: SettingsGetter) {
   currentLookup = lookup;
-  currentSettingsGetter = getSettings;
+  currentSettingsGetter = settingsGetter;
 
-  if (!History) {
-    return () => {};
+  if (historyUnlisten) {
+    historyUnlisten();
+  }
+  if (connectTimeoutId !== undefined) {
+    window.clearTimeout(connectTimeoutId);
+    connectTimeoutId = undefined;
   }
 
+  isStoreMounted = true;
   handleLocationChange(History.location?.pathname || "");
   historyUnlisten = History.listen((info: { pathname: string }) => {
     handleLocationChange(info.pathname);
@@ -364,6 +375,10 @@ export function initStorePatch(lookup: Lookup, getSettings: SettingsGetter): () 
     if (historyUnlisten) {
       historyUnlisten();
       historyUnlisten = null;
+    }
+    if (connectTimeoutId !== undefined) {
+      window.clearTimeout(connectTimeoutId);
+      connectTimeoutId = undefined;
     }
     disconnectStoreDebugger();
     currentLookup = null;
