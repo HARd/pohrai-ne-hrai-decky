@@ -105,6 +105,8 @@ class Plugin:
         settings = {}
         if args and isinstance(args[0], dict):
             settings = args[0]
+            if "settings" in settings and isinstance(settings["settings"], dict):
+                settings = settings["settings"]
         elif kwargs and "settings" in kwargs:
             settings = kwargs["settings"]
         elif kwargs:
