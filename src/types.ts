@@ -40,4 +40,5 @@ export interface InjectionDiagnostics {
   currentAppid: string | null;
   lastType: MarkType;
   lastError: string | null;
+  route: string;
 }

@@ -28,7 +28,7 @@ export default function GamePageBadge({ lookup, placement = "library" }: Props) 
   if (!status?.type) return null;
 
   const color = status.type === "hostile" ? "#7a2a2a" : "#27ae60";
-  const label = status.type === "hostile" ? "Ne Hrai - Ворожий проект" : "Hrai - Дружній проект";
+  const label = status.type === "hostile" ? "Ворожий проект" : "Дружній проект";
   const matches = [...status.matches.hostile, ...status.matches.ukrainian].join(", ");
 
   return (

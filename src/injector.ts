@@ -25,6 +25,7 @@ let diagnostics: InjectionDiagnostics = {
   currentAppid: null,
   lastType: null,
   lastError: null,
+  route: "",
 };
 
 export function startSteamUiInjection(
@@ -89,6 +90,7 @@ async function scanSteamUi(): Promise<void> {
     scans: diagnostics.scans + 1,
     candidates: candidates.length,
     marked: document.querySelectorAll(`.${OVERLAY_CLASS}, .${PAGE_BADGE_CLASS}`).length,
+    route: getRouteText().slice(0, 260),
     lastError: null,
   };
 
@@ -195,7 +197,7 @@ function applyStatus(container: HTMLElement, status: AppStatus): void {
   container.querySelectorAll<HTMLElement>(`.${OVERLAY_CLASS}, .${BADGE_CLASS}`).forEach((el) => el.remove());
 
   const color = status.type === "hostile" ? currentSettings.hostileColor : currentSettings.ukrainianColor;
-  const label = status.type === "hostile" ? "Ne Hrai - Ворожий проект" : "Hrai - Дружній проект";
+  const label = status.type === "hostile" ? "Ворожий проект" : "Дружній проект";
   const title = [...status.matches.hostile, ...status.matches.ukrainian].join(", ");
 
   const overlay = document.createElement("div");
@@ -256,7 +258,7 @@ function applyPageStatus(status: AppStatus): void {
   if (status.type === "ukrainian" && !currentSettings.markUkrainian) return;
 
   const color = status.type === "hostile" ? currentSettings.hostileColor : currentSettings.ukrainianColor;
-  const label = status.type === "hostile" ? "Ne Hrai - Ворожий проект" : "Hrai - Дружній проект";
+  const label = status.type === "hostile" ? "Ворожий проект" : "Дружній проект";
   const matches = [...status.matches.hostile, ...status.matches.ukrainian].join(", ");
   const badge = document.createElement("div");
   badge.className = `${PAGE_BADGE_CLASS} ${PAGE_BADGE_CLASS}-${status.type}`;
@@ -269,10 +271,7 @@ function applyPageStatus(status: AppStatus): void {
 
 function getCurrentAppid(): string | null {
   const routeText = [
-    window.location.href,
-    window.location.pathname,
-    window.location.hash,
-    readFocusedRoute(),
+    getRouteText(),
   ].join(" ");
   const routeMatch =
     routeText.match(/\/app\/(\d+)/) ||
@@ -285,6 +284,15 @@ function getCurrentAppid(): string | null {
   if (/^\d+$/.test(routerAppid)) return routerAppid;
 
   return null;
+}
+
+function getRouteText(): string {
+  return [
+    window.location.href,
+    window.location.pathname,
+    window.location.hash,
+    readFocusedRoute(),
+  ].filter(Boolean).join(" ");
 }
 
 function readFocusedRoute(): string {

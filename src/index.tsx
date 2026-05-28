@@ -52,6 +52,7 @@ const EMPTY_DIAGNOSTICS: InjectionDiagnostics = {
   currentAppid: null,
   lastType: null,
   lastError: null,
+  route: "",
 };
 
 function Content() {
@@ -177,7 +178,7 @@ function Content() {
         <PanelSectionRow>
           <div style={colorGridStyle}>
             <label style={fieldStyle}>
-              <span>Ne Hrai</span>
+              <span>Ворожий</span>
               <input
                 type="color"
                 value={settings.hostileColor}
@@ -185,7 +186,7 @@ function Content() {
               />
             </label>
             <label style={fieldStyle}>
-              <span>Hrai</span>
+              <span>Дружній</span>
               <input
                 type="color"
                 value={settings.ukrainianColor}
@@ -222,6 +223,11 @@ function Content() {
             {`Останній тип: ${diagnostics.lastType || "немає"}${diagnostics.lastError ? `, помилка: ${diagnostics.lastError}` : ""}`}
           </div>
         </PanelSectionRow>
+        <PanelSectionRow>
+          <div style={mutedStyle}>
+            {`Route: ${diagnostics.route || "немає"}`}
+          </div>
+        </PanelSectionRow>
       </PanelSection>
 
       <PanelSection title="База">
@@ -244,10 +250,10 @@ function Content() {
           />
         </PanelSectionRow>
         <PanelSectionRow>
-          <ResultList title="Hrai" items={results.ukrainian} color={settings.ukrainianColor} />
+          <ResultList title="Дружній" items={results.ukrainian} color={settings.ukrainianColor} />
         </PanelSectionRow>
         <PanelSectionRow>
-          <ResultList title="Ne Hrai" items={results.hostile} color={settings.hostileColor} />
+          <ResultList title="Ворожий" items={results.hostile} color={settings.hostileColor} />
         </PanelSectionRow>
       </PanelSection>
     </>
