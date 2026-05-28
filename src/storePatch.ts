@@ -25,6 +25,7 @@ let currentSettingsGetter: SettingsGetter | null = null;
 let connectTimeoutId: number | undefined;
 
 const getCefDebuggerUrl = callable<[], string>("get_cef_debugger_url");
+const reportGameToPython = callable<[{ url: string; data: any }], boolean>("report_game");
 
 function getBadgePayload(status: AppStatus, settings: PluginSettings) {
   if (!status.type) {
@@ -150,11 +151,7 @@ async function injectBadgeIntoStore(appid: string) {
               timestamp: Date.now()
             };
             
-            fetch(url, {
-              method: 'POST',
-              body: JSON.stringify(data),
-              headers: { 'Content-Type': 'application/json' }
-            }).then(function() {
+            window.__pohrai_report_success = function() {
               badge.textContent = "✅ Sent!";
               badge.dataset.sent = "1";
               badge.style.background = 'rgba(39, 174, 96, 0.85)';
@@ -162,10 +159,14 @@ async function injectBadgeIntoStore(appid: string) {
                 badge.style.opacity = '0';
                 setTimeout(function() { badge.remove(); }, 500);
               }, 2000);
-            }).catch(function() {
+            };
+
+            window.__pohrai_report_error = function() {
               badge.textContent = "❌ Error";
               setTimeout(function() { badge.textContent = "⚠️ Report Game"; }, 2000);
-            });
+            };
+
+            console.debug("POHRAI_REPORT:" + JSON.stringify({ url: url, data: data }));
           };
 
           document.body.appendChild(badge);
@@ -270,6 +271,24 @@ async function connectToStoreDebugger(retries = 5): Promise<void> {
         const url = data?.params?.frame?.url;
         if (data?.method === "Page.frameNavigated" && typeof url === "string") {
           window.setTimeout(() => updateAppIdFromUrl(url), 500);
+        } else if (data?.method === "Runtime.consoleAPICalled") {
+          const args = data?.params?.args;
+          if (args && args.length > 0 && args[0].type === "string" && args[0].value.startsWith("POHRAI_REPORT:")) {
+            try {
+              const payload = JSON.parse(args[0].value.substring(14));
+              reportGameToPython(payload).then((success) => {
+                if (success) {
+                  evaluateInStore('if (window.__pohrai_report_success) window.__pohrai_report_success()');
+                } else {
+                  evaluateInStore('if (window.__pohrai_report_error) window.__pohrai_report_error()');
+                }
+              }).catch(() => {
+                evaluateInStore('if (window.__pohrai_report_error) window.__pohrai_report_error()');
+              });
+            } catch (e) {
+              console.error("Failed to parse report payload", e);
+            }
+          }
         }
       } catch {
         // Ignore debugger messages that are not JSON payloads we care about.

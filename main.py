@@ -211,6 +211,24 @@ class Plugin:
             "matches": {"hostile": [], "ukrainian": []},
         }
 
+    async def report_game(self, payload):
+        await self._ensure_loaded()
+        url = payload.get("url")
+        data = payload.get("data")
+        if not url or not data:
+            return False
+
+        def _send():
+            req = urllib.request.Request(url, data=json.dumps(data).encode("utf-8"), headers={"Content-Type": "application/json"})
+            try:
+                with urllib.request.urlopen(req, timeout=12, context=SSL_CONTEXT) as response:
+                    return response.getcode() == 200
+            except Exception as e:
+                decky.logger.error(f"Failed to report game: {e}")
+                return False
+
+        return await asyncio.get_event_loop().run_in_executor(None, _send)
+
     def _fetch_appdetails(self, appid):
         url = f"https://store.steampowered.com/api/appdetails?appids={appid}"
         req = urllib.request.Request(url, headers={"User-Agent": "decky-pohrai-ne-hrai/0.1"})
