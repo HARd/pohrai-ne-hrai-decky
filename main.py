@@ -23,6 +23,7 @@ DEFAULT_SETTINGS = {
     "showBadges": True,
     "remoteDatabaseEnabled": True,
     "remoteDatabaseUrl": "https://hrai-decky-default-rtdb.europe-west1.firebasedatabase.app/",
+    "libraryBadgePosition": "bottom-right",
 }
 
 CACHE_TTL_SECONDS = 60 * 60 * 24 * 14
@@ -99,12 +100,23 @@ class Plugin:
         await self._ensure_loaded()
         return {**DEFAULT_SETTINGS, **self._settings}
 
-    async def save_settings(self, **kwargs):
+    async def save_settings(self, *args, **kwargs):
         await self._ensure_loaded()
-        settings = kwargs.get("settings", kwargs)
+        settings = {}
+        if args and isinstance(args[0], dict):
+            settings = args[0]
+        elif kwargs and "settings" in kwargs:
+            settings = kwargs["settings"]
+        elif kwargs:
+            settings = kwargs
+            
         sanitized = {**DEFAULT_SETTINGS, **settings}
-        sanitized["overlayOpacity"] = min(1, max(0.05, float(sanitized["overlayOpacity"])))
-        sanitized["remoteDatabaseEnabled"] = bool(sanitized.get("remoteDatabaseEnabled"))
+        try:
+            sanitized["overlayOpacity"] = min(1.0, max(0.05, float(sanitized.get("overlayOpacity", 0.35))))
+        except Exception:
+            sanitized["overlayOpacity"] = 0.35
+            
+        sanitized["remoteDatabaseEnabled"] = bool(sanitized.get("remoteDatabaseEnabled", True))
         sanitized["remoteDatabaseUrl"] = str(sanitized.get("remoteDatabaseUrl", "")).strip()
         self._settings = sanitized
         self._save_json(self._settings_path, self._settings)
