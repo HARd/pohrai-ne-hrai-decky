@@ -161,7 +161,7 @@ function Content() {
     
     // Auto-save to Python backend in the background
     void saveSettings(next)
-      .then((s) => toaster.toast({ title: "Saved", body: JSON.stringify(s).slice(0, 100) }))
+      .then((s) => toaster.toast({ title: "Saved", body: `${key} = ${s[key]}` }))
       .catch((e) => {
         console.error("Failed to auto-save settings to Python backend", e);
         toaster.toast({ title: "POHRAI/NE HRAI", body: `Save error: ${e}` });
@@ -239,7 +239,7 @@ function Content() {
           <ButtonItem layout="below" onClick={async () => {
             try {
               const s = await getSettings();
-              toaster.toast({ title: "Debug", body: `Keys: ${Object.keys(s).join(",")}` });
+              toaster.toast({ title: "Debug", body: `H.Color: ${s.hostileColor}, U.Color: ${s.ukrainianColor}` });
             } catch (e) {
               toaster.toast({ title: "Debug Error", body: String(e) });
             }
