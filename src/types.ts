@@ -10,6 +10,7 @@ export interface PluginSettings {
   remoteDatabaseEnabled: boolean;
   remoteDatabaseUrl: string;
   libraryBadgePosition: "top-left" | "top-right" | "bottom-left" | "bottom-right";
+  libraryBadgeStyle: "text" | "icon";
 }
 
 export interface AppStatus {

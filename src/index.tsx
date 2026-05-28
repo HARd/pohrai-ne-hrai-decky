@@ -39,6 +39,7 @@ const DEFAULT_SETTINGS: PluginSettings = {
   remoteDatabaseEnabled: true,
   remoteDatabaseUrl: "https://hrai-decky-default-rtdb.europe-west1.firebasedatabase.app/",
   libraryBadgePosition: "bottom-right",
+  libraryBadgeStyle: "text",
 };
 
 const getAppStatus = callable<[appid: string], AppStatus>("get_app_status");
@@ -61,8 +62,13 @@ const COLOR_OPTIONS: DropdownOption[] = [
 const POSITION_OPTIONS: DropdownOption[] = [
   { data: "top-left", label: "Верхній лівий кут" },
   { data: "top-right", label: "Верхній правий кут" },
-  { data: "bottom-left", label: "Нижній лівий кут" },
-  { data: "bottom-right", label: "Нижній правий кут" },
+  { data: "bottom-left", label: "Знизу ліворуч" },
+  { data: "bottom-right", label: "Знизу праворуч" },
+];
+
+const STYLE_OPTIONS: DropdownOption[] = [
+  { data: "text", label: "Напис" },
+  { data: "icon", label: "Іконка" },
 ];
 
 const BACKEND_TIMEOUT_MS = 1800;
@@ -255,6 +261,14 @@ function Content() {
             rgOptions={POSITION_OPTIONS}
             selectedOption={settings.libraryBadgePosition}
             onChange={(option) => updateSetting("libraryBadgePosition", option.data as PluginSettings["libraryBadgePosition"])}
+          />
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <DropdownItem
+            menuLabel="Вигляд плашки в картці гри"
+            rgOptions={STYLE_OPTIONS}
+            selectedOption={settings.libraryBadgeStyle}
+            onChange={(option) => updateSetting("libraryBadgeStyle", option.data as PluginSettings["libraryBadgeStyle"])}
           />
         </PanelSectionRow>
         <PanelSectionRow>
