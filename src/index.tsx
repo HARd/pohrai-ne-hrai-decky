@@ -2,6 +2,10 @@ import {
   ButtonItem,
   PanelSection,
   PanelSectionRow,
+  ToggleField,
+  SliderField,
+  DropdownItem,
+  DropdownOption,
   staticClasses,
 } from "@decky/ui";
 import {
@@ -41,6 +45,18 @@ const getSettings = callable<[], PluginSettings>("get_settings");
 const saveSettings = callable<[settings: PluginSettings], PluginSettings>("save_settings");
 const refreshDatabase = callable<[force: boolean], DatabaseStats>("refresh_database");
 const getDatabaseStats = callable<[], DatabaseStats>("get_database_stats");
+
+const COLOR_OPTIONS: DropdownOption[] = [
+  { data: "#e74c3c", label: "Червоний" },
+  { data: "#7a2a2a", label: "Темно-червоний" },
+  { data: "#e67e22", label: "Помаранчевий" },
+  { data: "#f1c40f", label: "Жовтий" },
+  { data: "#27ae60", label: "Зелений" },
+  { data: "#2980b9", label: "Синій" },
+  { data: "#8e44ad", label: "Фіолетовий" },
+  { data: "#2c3e50", label: "Темно-синій" },
+  { data: "#bdc3c7", label: "Світло-сірий" },
+];
 
 const BACKEND_TIMEOUT_MS = 1800;
 let activeSettings = getLocalSettings();
@@ -163,67 +179,52 @@ function Content() {
 
       <PanelSection title="Маркування Steam UI">
         <PanelSectionRow>
-          <label style={rowStyle}>
-            <input
-              type="checkbox"
-              checked={settings.markHostile}
-              onChange={(event) => updateSetting("markHostile", event.currentTarget.checked)}
-            />
-            <span>Маркувати ворожих розробників</span>
-          </label>
+          <ToggleField
+            label="Маркувати ворожих розробників"
+            checked={settings.markHostile}
+            onChange={(checked) => updateSetting("markHostile", checked)}
+          />
         </PanelSectionRow>
         <PanelSectionRow>
-          <label style={rowStyle}>
-            <input
-              type="checkbox"
-              checked={settings.markUkrainian}
-              onChange={(event) => updateSetting("markUkrainian", event.currentTarget.checked)}
-            />
-            <span>Маркувати українських розробників</span>
-          </label>
+          <ToggleField
+            label="Маркувати українських розробників"
+            checked={settings.markUkrainian}
+            onChange={(checked) => updateSetting("markUkrainian", checked)}
+          />
         </PanelSectionRow>
         <PanelSectionRow>
-          <label style={rowStyle}>
-            <input
-              type="checkbox"
-              checked={settings.showBadges}
-              onChange={(event) => updateSetting("showBadges", event.currentTarget.checked)}
-            />
-            <span>Показувати бейджі на картках</span>
-          </label>
+          <ToggleField
+            label="Показувати бейджі на картках"
+            checked={settings.showBadges}
+            onChange={(checked) => updateSetting("showBadges", checked)}
+          />
         </PanelSectionRow>
         <PanelSectionRow>
-          <div style={fieldStyle}>
-            <span>Прозорість: {Math.round(settings.overlayOpacity * 100)}%</span>
-            <input
-              type="range"
-              min="0.05"
-              max="1"
-              step="0.05"
-              value={settings.overlayOpacity}
-              onChange={(event) => updateSetting("overlayOpacity", Number(event.currentTarget.value))}
-            />
-          </div>
+          <SliderField
+            label="Прозорість бейджа"
+            description={`${Math.round(settings.overlayOpacity * 100)}%`}
+            value={settings.overlayOpacity}
+            min={0.05}
+            max={1}
+            step={0.05}
+            onChange={(value) => updateSetting("overlayOpacity", value)}
+          />
         </PanelSectionRow>
         <PanelSectionRow>
-          <div style={colorGridStyle}>
-            <label style={fieldStyle}>
-              <span>Ворожий</span>
-              <input
-                type="color"
-                value={settings.hostileColor}
-                onChange={(event) => updateSetting("hostileColor", event.currentTarget.value)}
-              />
-            </label>
-            <label style={fieldStyle}>
-              <span>Дружній</span>
-              <input
-                type="color"
-                value={settings.ukrainianColor}
-                onChange={(event) => updateSetting("ukrainianColor", event.currentTarget.value)}
-              />
-            </label>
-          </div>
+          <DropdownItem
+            menuLabel="Колір ворожих проектів"
+            rgOptions={COLOR_OPTIONS}
+            selectedOption={settings.hostileColor}
+            onChange={(option) => updateSetting("hostileColor", option.data as string)}
+          />
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <DropdownItem
+            menuLabel="Колір дружніх проектів"
+            rgOptions={COLOR_OPTIONS}
+            selectedOption={settings.ukrainianColor}
+            onChange={(option) => updateSetting("ukrainianColor", option.data as string)}
+          />
         </PanelSectionRow>
         <PanelSectionRow>
           <ButtonItem layout="below" disabled={saving || syncing} onClick={persistSettings}>
@@ -235,26 +236,12 @@ function Content() {
   );
 }
 
-const rowStyle = {
-  display: "flex",
-  alignItems: "center",
-  gap: "8px",
-  fontSize: "13px",
-} as const;
-
 const fieldStyle = {
   display: "flex",
   flexDirection: "column",
   gap: "6px",
   width: "100%",
   fontSize: "13px",
-} as const;
-
-const colorGridStyle = {
-  display: "grid",
-  gridTemplateColumns: "1fr 1fr",
-  gap: "10px",
-  width: "100%",
 } as const;
 
 export default definePlugin(() => {
