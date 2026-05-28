@@ -59,16 +59,16 @@ function getLibraryPositionStyles(pos: string) {
     case "top-right":
       return { top: "58px", right: "22px", left: "auto" };
     case "bottom-left":
-      return { top: "220px", left: "22px", right: "auto" };
+      return { top: "170px", left: "22px", right: "auto" };
     case "bottom-right":
     default:
-      return { top: "220px", right: "22px", left: "auto" };
+      return { top: "170px", right: "22px", left: "auto" };
   }
 }
 
 const libraryContainerStyle = {
   position: "absolute",
-  top: "270px",
+  top: "170px",
   right: "22px",
   zIndex: 20,
   pointerEvents: "none",
