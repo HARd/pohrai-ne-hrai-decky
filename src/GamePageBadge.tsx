@@ -35,7 +35,7 @@ export default function GamePageBadge({ lookup, getSettings, placement = "librar
 
   if (!status?.type) return null;
 
-  const color = status.type === "hostile" ? "#7a2a2a" : "#27ae60";
+  const color = status.type === "hostile" ? settings.hostileColor : settings.ukrainianColor;
   const label = status.type === "hostile" ? "Ворожий проект" : "Дружній проект";
   const matches = [...status.matches.hostile, ...status.matches.ukrainian].join(", ");
 
@@ -59,16 +59,16 @@ function getLibraryPositionStyles(pos: string) {
     case "top-right":
       return { top: "58px", right: "22px", left: "auto" };
     case "bottom-left":
-      return { top: "330px", left: "22px", right: "auto" };
+      return { top: "270px", left: "22px", right: "auto" };
     case "bottom-right":
     default:
-      return { top: "330px", right: "22px", left: "auto" };
+      return { top: "270px", right: "22px", left: "auto" };
   }
 }
 
 const libraryContainerStyle = {
   position: "absolute",
-  top: "330px",
+  top: "270px",
   right: "22px",
   zIndex: 20,
   pointerEvents: "none",
