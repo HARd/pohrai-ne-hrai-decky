@@ -160,9 +160,12 @@ function Content() {
     window.dispatchEvent(new CustomEvent("pohrai-settings-changed"));
     
     // Auto-save to Python backend in the background
-    void saveSettings({ settings: next }).catch((e) => {
-      console.error("Failed to auto-save settings to Python backend", e);
-    });
+    void saveSettings({ settings: next })
+      .then(() => toaster.toast({ title: "POHRAI/NE HRAI", body: `Settings saved: ${key}` }))
+      .catch((e) => {
+        console.error("Failed to auto-save settings to Python backend", e);
+        toaster.toast({ title: "POHRAI/NE HRAI", body: `Save error: ${e}` });
+      });
   };
 
   const forceRefresh = async () => {
@@ -226,8 +229,22 @@ function Content() {
           </div>
         </PanelSectionRow>
         <PanelSectionRow>
-          <ButtonItem layout="below" disabled={syncing} onClick={forceRefresh}>
-            {syncing ? t(lang, "menu_refreshing") : t(lang, "menu_refresh_db")}
+          <div style={fieldStyle}>
+            <ButtonItem layout="below" disabled={syncing} onClick={forceRefresh}>
+              {syncing ? t(lang, "menu_refreshing") : t(lang, "menu_refresh_db")}
+            </ButtonItem>
+          </div>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <ButtonItem layout="below" onClick={async () => {
+            try {
+              const s = await getSettings();
+              toaster.toast({ title: "Debug", body: `Keys: ${Object.keys(s).join(",")}` });
+            } catch (e) {
+              toaster.toast({ title: "Debug Error", body: String(e) });
+            }
+          }}>
+            Debug Settings
           </ButtonItem>
         </PanelSectionRow>
       </PanelSection>
