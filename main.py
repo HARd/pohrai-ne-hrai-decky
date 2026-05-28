@@ -64,7 +64,6 @@ class Plugin:
 
     async def get_database_stats(self):
         await self._ensure_loaded()
-        await self._refresh_database()
         return {
             "version": self._database.get("version", "unknown"),
             "hostileCount": len(self._hostile_set),
