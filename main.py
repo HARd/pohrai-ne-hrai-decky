@@ -106,10 +106,19 @@ class Plugin:
         await self._ensure_loaded()
         return {**DEFAULT_SETTINGS, **self._settings}
 
-    async def save_settings(self, settings):
+    async def save_settings(self, *args, **kwargs):
+        decky.logger.info(f"save_settings called with args={args} kwargs={kwargs}")
         await self._ensure_loaded()
+        
+        settings = {}
+        if args and isinstance(args[0], dict):
+            settings = args[0]
+        elif kwargs:
+            settings = kwargs.get("settings", kwargs)
+            
         if "settings" in settings and isinstance(settings["settings"], dict):
             settings = settings["settings"]
+            
         sanitized = {**DEFAULT_SETTINGS, **settings}
         try:
             sanitized["overlayOpacity"] = min(1.0, max(0.05, float(sanitized.get("overlayOpacity", 0.35))))
