@@ -31,6 +31,12 @@ class Plugin:
     async def _ensure_loaded(self):
         if getattr(self, "_loaded", False):
             return
+        if getattr(self, "_loading", False):
+            while getattr(self, "_loading", False):
+                await asyncio.sleep(0.1)
+            return
+        self._loading = True
+
         self._plugin_dir = os.path.dirname(os.path.realpath(__file__))
         self._data_path = os.path.join(self._plugin_dir, "data", "developers.json")
         self._settings_path = os.path.join(decky.DECKY_SETTINGS_DIR, "settings.json")
@@ -43,9 +49,13 @@ class Plugin:
         self._remote_database_url = ""
         self._remote_database_fetched_at = 0
         self._remote_database_error = None
-        await self._refresh_database()
+        self._set_database(self._database, "bundled", "")
+
         self._loaded = True
+        self._loading = False
         decky.logger.info(f"POHRAI/NE HRAI loaded {len(self._hostile_set)} hostile and {len(self._ukrainian_set)} Ukrainian entries")
+
+        asyncio.create_task(self._refresh_database())
 
     async def _unload(self):
         await self._ensure_loaded()
@@ -192,33 +202,42 @@ class Plugin:
         return self._load_json(self._data_path, {"hostile": [], "ukrainian": []})
 
     async def _refresh_database(self, force=False):
-        remote_enabled = self._settings.get("remoteDatabaseEnabled", False)
-        remote_url = str(self._settings.get("remoteDatabaseUrl", "")).strip()
-        if not remote_enabled or not remote_url:
-            self._set_database(self._load_database(), "bundled", "")
-            self._remote_database_error = None
-            return
-
-        url = self._firebase_json_url(remote_url)
-        fresh = (
-            not force
-            and self._database_source == "remote"
-            and self._remote_database_url == url
-            and time.time() - self._remote_database_fetched_at < REMOTE_DATABASE_TTL_SECONDS
-        )
-        if fresh:
-            return
-
+        if getattr(self, "_refreshing", False):
+            while getattr(self, "_refreshing", False):
+                await asyncio.sleep(0.1)
+            if not force:
+                return
+        self._refreshing = True
         try:
-            remote_database = await asyncio.to_thread(self._fetch_remote_database, url)
-            self._set_database(remote_database, "remote", url)
-            self._remote_database_fetched_at = time.time()
-            self._remote_database_error = None
-        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, ValueError) as exc:
-            decky.logger.warning("Failed to fetch remote database: %s", exc)
-            self._remote_database_error = str(exc)
-            if self._database_source != "remote":
+            remote_enabled = self._settings.get("remoteDatabaseEnabled", False)
+            remote_url = str(self._settings.get("remoteDatabaseUrl", "")).strip()
+            if not remote_enabled or not remote_url:
                 self._set_database(self._load_database(), "bundled", "")
+                self._remote_database_error = None
+                return
+
+            url = self._firebase_json_url(remote_url)
+            fresh = (
+                not force
+                and self._database_source == "remote"
+                and self._remote_database_url == url
+                and time.time() - self._remote_database_fetched_at < REMOTE_DATABASE_TTL_SECONDS
+            )
+            if fresh:
+                return
+
+            try:
+                remote_database = await asyncio.to_thread(self._fetch_remote_database, url)
+                self._set_database(remote_database, "remote", url)
+                self._remote_database_fetched_at = time.time()
+                self._remote_database_error = None
+            except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, ValueError) as exc:
+                decky.logger.warning("Failed to fetch remote database: %s", exc)
+                self._remote_database_error = str(exc)
+                if self._database_source != "remote":
+                    self._set_database(self._load_database(), "bundled", "")
+        finally:
+            self._refreshing = False
 
     def _set_database(self, database, source, remote_url):
         self._database = database
