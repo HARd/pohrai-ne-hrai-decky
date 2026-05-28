@@ -48,7 +48,7 @@ const DEFAULT_SETTINGS: PluginSettings = {
 
 const getAppStatus = callable<[appid: string], AppStatus>("get_app_status");
 const getSettings = callable<[], PluginSettings>("get_settings");
-const setSetting = callable<[key: string, value: any], PluginSettings>("set_setting");
+const setSetting = callable<[{key: string, value: any}], PluginSettings>("set_setting");
 const refreshDatabase = callable<[force: boolean], DatabaseStats>("refresh_database");
 const getDatabaseStats = callable<[], DatabaseStats>("get_database_stats");
 
@@ -87,7 +87,8 @@ let activeSettings = getLocalSettings();
 let fetchedFromPython = false;
 
 function Content() {
-  const [settings, setSettings] = useState<PluginSettings>(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<PluginSettings>(activeSettings);
+  const [isLoaded, setIsLoaded] = useState(fetchedFromPython);
   const [syncing, setSyncing] = useState(false);
   const [db, setDb] = useState<DatabaseStats | null>(null);
   const [statsError, setStatsError] = useState<string | null>(null);
@@ -105,11 +106,13 @@ function Content() {
           const merged = { ...DEFAULT_SETTINGS, ...loadedSettings };
           activeSettings = merged;
           setSettings(merged);
+          setIsLoaded(true);
           saveLocalSettings(merged);
           startSteamUiInjection(getResolvedAppStatus, merged);
         })
         .catch(() => {
           fetchedFromPython = true;
+          if (mounted) setIsLoaded(true);
         });
     }
 
@@ -160,7 +163,7 @@ function Content() {
     window.dispatchEvent(new CustomEvent("pohrai-settings-changed"));
     
     // Auto-save to Python backend in the background
-    void setSetting(key, value)
+    void setSetting({ key: key as string, value })
       .then((s) => toaster.toast({ title: "Saved", body: `${key} = ${s[key]}` }))
       .catch((e) => {
         console.error("Failed to auto-save setting to Python backend", e);
@@ -203,6 +206,16 @@ function Content() {
   };
 
   const lang = settings.language;
+
+  if (!isLoaded) {
+    return (
+      <PanelSection>
+        <PanelSectionRow>
+          <div style={fieldStyle}>{t(lang, "loading")}</div>
+        </PanelSectionRow>
+      </PanelSection>
+    );
+  }
 
   return (
     <>
