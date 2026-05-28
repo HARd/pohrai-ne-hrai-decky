@@ -51,7 +51,7 @@ export default function GamePageBadge({ lookup, getSettings, placement = "librar
         <img 
           src={iconSrc} 
           alt={label} 
-          style={{ width: "64px", height: "auto", filter: "drop-shadow(0 4px 16px rgba(0,0,0,0.6))" }} 
+          style={{ width: "128px", height: "auto", filter: "drop-shadow(0 4px 16px rgba(0,0,0,0.6))" }} 
         />
       </div>
     );
