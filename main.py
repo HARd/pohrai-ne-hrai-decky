@@ -5,8 +5,13 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import ssl
 
 import decky
+
+SSL_CONTEXT = ssl.create_default_context()
+SSL_CONTEXT.check_hostname = False
+SSL_CONTEXT.verify_mode = ssl.CERT_NONE
 
 
 DEFAULT_SETTINGS = {
@@ -196,7 +201,7 @@ class Plugin:
         url = f"https://store.steampowered.com/api/appdetails?appids={appid}"
         req = urllib.request.Request(url, headers={"User-Agent": "decky-pohrai-ne-hrai/0.1"})
         try:
-            with urllib.request.urlopen(req, timeout=12) as response:
+            with urllib.request.urlopen(req, timeout=12, context=SSL_CONTEXT) as response:
                 payload = json.loads(response.read().decode("utf-8"))
         except Exception as exc:
             decky.logger.warning("Failed to fetch appdetails for %s: %s", appid, exc)
@@ -263,7 +268,7 @@ class Plugin:
 
     def _fetch_remote_database(self, url):
         req = urllib.request.Request(url, headers={"User-Agent": "decky-pohrai-ne-hrai/0.2"})
-        with urllib.request.urlopen(req, timeout=12) as response:
+        with urllib.request.urlopen(req, timeout=12, context=SSL_CONTEXT) as response:
             payload = json.loads(response.read().decode("utf-8"))
 
         if not isinstance(payload, dict) or not isinstance(payload.get("hostile"), list) or not isinstance(payload.get("ukrainian"), list):
