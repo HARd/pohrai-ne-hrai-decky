@@ -165,7 +165,7 @@ async function injectBadgeIntoStore(appid: string) {
 
           badge.onclick = function() {
             if (badge.dataset.sent === "1") return;
-            badge.textContent = "Sending...";
+            badge.textContent = "⏳ Sending...";
             
             var appName = document.querySelector('.apphub_AppName');
             var name = appName ? appName.textContent.trim() : "Unknown";
@@ -306,6 +306,7 @@ async function connectToStoreDebugger(retries = 5): Promise<void> {
             try {
               const payload = JSON.parse(args[0].value.substring(14));
               reportGameToPython(payload).then((success) => {
+                evaluateInStore(`console.log("POHRAI_REPLY received:", ${success});`);
                 if (success) {
                   evaluateInStore(`
                     var b = document.getElementById('pohrai-ne-hrai-store-badge');
