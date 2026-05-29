@@ -313,6 +313,7 @@ function Content() {
           />
         </PanelSectionRow>
         <PanelSectionRow>
+          <div style={{ padding: "10px 0 5px 0", fontSize: "12px", color: "#969696", textTransform: "uppercase", fontWeight: 600 }}>{t(lang, "menu_hostile_color")}</div>
           <DropdownItem
             menuLabel={t(lang, "menu_hostile_color")}
             rgOptions={getColorOptions(lang)}
@@ -321,6 +322,7 @@ function Content() {
           />
         </PanelSectionRow>
         <PanelSectionRow>
+          <div style={{ padding: "10px 0 5px 0", fontSize: "12px", color: "#969696", textTransform: "uppercase", fontWeight: 600 }}>{t(lang, "menu_ukrainian_color")}</div>
           <DropdownItem
             menuLabel={t(lang, "menu_ukrainian_color")}
             rgOptions={getColorOptions(lang)}
@@ -329,6 +331,7 @@ function Content() {
           />
         </PanelSectionRow>
         <PanelSectionRow>
+          <div style={{ padding: "10px 0 5px 0", fontSize: "12px", color: "#969696", textTransform: "uppercase", fontWeight: 600 }}>{t(lang, "menu_badge_position")}</div>
           <DropdownItem
             menuLabel={t(lang, "menu_badge_position")}
             rgOptions={getPositionOptions(lang)}
@@ -337,6 +340,7 @@ function Content() {
           />
         </PanelSectionRow>
         <PanelSectionRow>
+          <div style={{ padding: "10px 0 5px 0", fontSize: "12px", color: "#969696", textTransform: "uppercase", fontWeight: 600 }}>{t(lang, "menu_badge_style")}</div>
           <DropdownItem
             menuLabel={t(lang, "menu_badge_style")}
             rgOptions={getStyleOptions(lang)}
