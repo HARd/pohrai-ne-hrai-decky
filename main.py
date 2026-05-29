@@ -453,3 +453,58 @@ class Plugin:
         self._cache_dirty = False
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(None, self._save_json, self._cache_path, self._cache)
+
+    async def get_version(self):
+        try:
+            pkg_path = os.path.join(self._plugin_dir, "package.json")
+            with open(pkg_path, "r") as f:
+                return json.load(f).get("version", "0.0.0")
+        except Exception:
+            return "0.0.0"
+
+    async def check_update(self):
+        try:
+            current = await self.get_version()
+            url = "https://api.github.com/repos/HARd/pohrai-ne-hrai-decky/releases/latest"
+            req = urllib.request.Request(url, headers={"User-Agent": "decky-pohrai-ne-hrai/0.1"})
+            with urllib.request.urlopen(req, timeout=12, context=SSL_CONTEXT) as response:
+                if response.getcode() == 200:
+                    data = json.loads(response.read().decode("utf-8"))
+                    latest = data.get("tag_name", "").lstrip("v")
+                    if latest and latest != current:
+                        assets = data.get("assets", [])
+                        if assets:
+                            download_url = assets[0].get("browser_download_url")
+                            return {"available": True, "version": latest, "url": download_url}
+        except Exception as e:
+            decky.logger.error(f"Failed to check update: {e}")
+        return {"available": False}
+
+    async def apply_update(self, download_url):
+        import subprocess
+        import shutil
+        import tempfile
+        try:
+            decky.logger.info(f"Downloading update from {download_url}")
+            with tempfile.TemporaryDirectory() as tmpdir:
+                zip_path = os.path.join(tmpdir, "update.zip")
+                req = urllib.request.Request(download_url, headers={"User-Agent": "decky-pohrai-ne-hrai/0.1"})
+                with urllib.request.urlopen(req, timeout=30, context=SSL_CONTEXT) as response, open(zip_path, "wb") as out_file:
+                    shutil.copyfileobj(response, out_file)
+                
+                extract_dir = os.path.join(tmpdir, "extracted")
+                os.makedirs(extract_dir)
+                subprocess.run(["unzip", "-o", zip_path, "-d", extract_dir], check=True)
+                
+                plugin_folder = os.path.join(extract_dir, "pohrai-ne-hrai")
+                if not os.path.exists(plugin_folder):
+                    plugin_folder = extract_dir
+
+                subprocess.run(["rsync", "-av", f"{plugin_folder}/", f"{self._plugin_dir}/"], check=True)
+                
+                decky.logger.info("Update applied, restarting plugin loader...")
+                os.system("systemctl restart plugin_loader")
+                return True
+        except Exception as e:
+            decky.logger.error(f"Failed to apply update: {e}")
+            return False

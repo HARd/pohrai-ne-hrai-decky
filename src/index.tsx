@@ -52,6 +52,10 @@ const setSetting = callable<[{key: string, value: any}], PluginSettings>("set_se
 const refreshDatabase = callable<[force: boolean], DatabaseStats>("refresh_database");
 const getDatabaseStats = callable<[], DatabaseStats>("get_database_stats");
 
+const getPluginVersion = callable<[], string>("get_version");
+const checkPluginUpdate = callable<[], { available: boolean; version?: string; url?: string }>("check_update");
+const applyPluginUpdate = callable<[download_url: string], boolean>("apply_update");
+
 function getColorOptions(lang: "uk" | "en") {
   return [
     { data: "#e74c3c", label: t(lang, "color_red") },
@@ -92,6 +96,14 @@ function Content() {
   const [syncing, setSyncing] = useState(false);
   const [db, setDb] = useState<DatabaseStats | null>(null);
   const [statsError, setStatsError] = useState<string | null>(null);
+  const [pluginVersion, setPluginVersion] = useState<string>("...");
+  const [updateInfo, setUpdateInfo] = useState<{ available: boolean; version?: string; url?: string } | null>(null);
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  useEffect(() => {
+    getPluginVersion().then(setPluginVersion).catch(() => {});
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -331,6 +343,69 @@ function Content() {
             onChange={(option) => updateSetting("libraryBadgeStyle", option.data as PluginSettings["libraryBadgeStyle"])}
           />
         </PanelSectionRow>
+      </PanelSection>
+
+      <PanelSection title="Оновлення (Updates)">
+        <PanelSectionRow>
+          <div style={fieldStyle}>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span>Поточна версія:</span>
+              <span>{pluginVersion}</span>
+            </div>
+          </div>
+        </PanelSectionRow>
+        
+        {updateInfo?.available && updateInfo.url ? (
+          <PanelSectionRow>
+            <ButtonItem
+              layout="below"
+              onClick={async () => {
+                setIsUpdating(true);
+                const success = await applyPluginUpdate(updateInfo.url!);
+                if (success) {
+                  toaster.toast({
+                    title: "Оновлення встановлено",
+                    body: "Перезапуск Decky Loader...",
+                    duration: 3000
+                  });
+                  // It will restart itself on the backend
+                } else {
+                  setIsUpdating(false);
+                  toaster.toast({
+                    title: "Помилка",
+                    body: "Не вдалося встановити оновлення",
+                    duration: 4000
+                  });
+                }
+              }}
+              disabled={isUpdating}
+            >
+              {isUpdating ? "Встановлення..." : `Оновити до v${updateInfo.version}`}
+            </ButtonItem>
+          </PanelSectionRow>
+        ) : (
+          <PanelSectionRow>
+            <ButtonItem
+              layout="below"
+              onClick={async () => {
+                setIsCheckingUpdate(true);
+                const info = await checkPluginUpdate();
+                setIsCheckingUpdate(false);
+                setUpdateInfo(info);
+                if (!info.available) {
+                  toaster.toast({
+                    title: "Оновлення",
+                    body: "У вас встановлена остання версія!",
+                    duration: 3000
+                  });
+                }
+              }}
+              disabled={isCheckingUpdate || isUpdating}
+            >
+              {isCheckingUpdate ? "Перевірка..." : "Перевірити оновлення"}
+            </ButtonItem>
+          </PanelSectionRow>
+        )}
       </PanelSection>
     </>
   );
