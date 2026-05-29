@@ -175,12 +175,9 @@ async function injectBadgeIntoStore(appid: string) {
             devNodes.forEach(function(n) { devs.push(n.textContent.trim()); });
             var developer = devs.join(", ") || "Unknown";
             
-            var safeName = name.replace(/[^a-zA-Z0-9а-яА-ЯіІїЇєЄґҐ]/g, '_').substring(0, 30);
-            var readableKey = payload.appid + '_' + safeName + '_' + Date.now();
-            
             var url = ${JSON.stringify(payload.remoteDatabaseUrl)};
             if (!url.endsWith("/")) url += "/";
-            url += "reports/" + encodeURIComponent(readableKey) + ".json";
+            url += "reports.json";
             
             var data = {
               appid: ${JSON.stringify(payload.appid)},
@@ -189,7 +186,7 @@ async function injectBadgeIntoStore(appid: string) {
               timestamp: Date.now()
             };
             
-            console.debug("POHRAI_REPORT:" + JSON.stringify({ url: url, data: data, method: "PUT" }));
+            console.debug("POHRAI_REPORT:" + JSON.stringify({ url: url, data: data }));
           };
 
           document.body.appendChild(badge);
