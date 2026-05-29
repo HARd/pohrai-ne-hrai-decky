@@ -506,8 +506,14 @@ class Plugin:
                 decky.logger.info(f"Copying files from {plugin_folder} to {self._plugin_dir}")
                 shutil.copytree(plugin_folder, self._plugin_dir, dirs_exist_ok=True)
                 
-                decky.logger.info("Update applied, restarting plugin loader...")
-                os.system("systemctl restart plugin_loader")
+                decky.logger.info("Update applied, scheduling plugin loader restart in 2 seconds...")
+                async def _restart_later():
+                    import asyncio
+                    await asyncio.sleep(2)
+                    os.system("systemctl restart plugin_loader")
+                
+                import asyncio
+                asyncio.create_task(_restart_later())
                 return True
         except Exception as e:
             decky.logger.error(f"Failed to apply update: {e}")
