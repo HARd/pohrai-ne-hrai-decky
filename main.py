@@ -59,10 +59,12 @@ class Plugin:
             self._settings_path = os.path.join(decky.DECKY_PLUGIN_SETTINGS_DIR, "settings.json")
             self._cache_path = os.path.join(decky.DECKY_PLUGIN_RUNTIME_DIR, "appdetails-cache.json")
             self._db_cache_path = os.path.join(decky.DECKY_PLUGIN_RUNTIME_DIR, "database-cache.json")
+            self._etags_path = os.path.join(decky.DECKY_PLUGIN_RUNTIME_DIR, "etags.json")
             self._lock = asyncio.Lock()
             self._database = self._load_database()
             self._settings = self._load_json(self._settings_path, DEFAULT_SETTINGS)
             self._cache = self._load_json(self._cache_path, {})
+            self._etags = self._load_json(self._etags_path, {})
             self._database_source = "bundled"
             self._remote_database_url = ""
             self._remote_database_fetched_at = 0
@@ -70,19 +72,31 @@ class Plugin:
             self._set_database(self._database, "bundled", "")
 
             self._loaded = True
+            self._cache_dirty = False
             decky.logger.info(f"POHRAI/NE HRAI loaded {len(self._hostile_set)} hostile and {len(self._ukrainian_set)} Ukrainian entries")
 
             asyncio.create_task(self._refresh_database())
+            asyncio.create_task(self._cache_saver_loop())
         except Exception as e:
             decky.logger.error(f"Failed to load Ne Hrai SD backend: {e}")
             raise
         finally:
             self._loading = False
 
+    async def _cache_saver_loop(self):
+        while True:
+            await asyncio.sleep(30)
+            if getattr(self, "_cache_dirty", False):
+                try:
+                    await self._save_cache(force=True)
+                except Exception as e:
+                    decky.logger.error(f"Failed to save cache in background loop: {e}")
+
     async def _unload(self):
         await self._ensure_loaded()
-        await self._save_cache()
+        await self._save_cache(force=True)
         self._save_json(self._settings_path, self._settings)
+        self._save_json(self._etags_path, self._etags)
 
     async def get_database_stats(self):
         try:
@@ -270,23 +284,45 @@ class Plugin:
 
     def _fetch_appdetails(self, appid):
         url = f"https://store.steampowered.com/api/appdetails?appids={appid}"
-        req = urllib.request.Request(url, headers={"User-Agent": "decky-pohrai-ne-hrai/0.1"})
+        req = urllib.request.Request(url, headers={"User-Agent": "decky-pohrai-ne-hrai/0.2"})
+        payload = None
         try:
-            with urllib.request.urlopen(req, timeout=12, context=SSL_CONTEXT) as response:
-                payload = json.loads(response.read().decode("utf-8"))
+            with urllib.request.urlopen(req, timeout=8, context=SSL_CONTEXT) as response:
+                if response.getcode() == 200:
+                    payload = json.loads(response.read().decode("utf-8"))
         except Exception as exc:
-            decky.logger.warning("Failed to fetch appdetails for %s: %s", appid, exc)
-            return None
+            decky.logger.warning("Failed to fetch appdetails from Steam for %s: %s", appid, exc)
 
-        entry = payload.get(appid)
-        if not entry or not entry.get("success") or not entry.get("data"):
-            return None
+        if payload:
+            entry = payload.get(appid)
+            if entry and entry.get("success") and entry.get("data"):
+                data = entry["data"]
+                return {
+                    "developers": data.get("developers") or [],
+                    "publishers": data.get("publishers") or [],
+                }
 
-        data = entry["data"]
-        return {
-            "developers": data.get("developers") or [],
-            "publishers": data.get("publishers") or [],
-        }
+        decky.logger.info(f"Falling back to SteamSpy API for {appid}")
+        try:
+            spy_url = f"https://steamspy.com/api.php?request=appdetails&appid={appid}"
+            spy_req = urllib.request.Request(spy_url, headers={"User-Agent": "decky-pohrai-ne-hrai/0.2"})
+            with urllib.request.urlopen(spy_req, timeout=12, context=SSL_CONTEXT) as response:
+                if response.getcode() == 200:
+                    spy_payload = json.loads(response.read().decode("utf-8"))
+                    dev_str = spy_payload.get("developer", "")
+                    pub_str = spy_payload.get("publisher", "")
+                    devs = [d.strip() for d in dev_str.split(",")] if dev_str else []
+                    pubs = [p.strip() for p in pub_str.split(",")] if pub_str else []
+                    
+                    if devs or pubs:
+                        return {
+                            "developers": [d for d in devs if d],
+                            "publishers": [p for p in pubs if p],
+                        }
+        except Exception as exc:
+            decky.logger.warning("Failed to fetch appdetails from SteamSpy for %s: %s", appid, exc)
+
+        return None
 
     def _load_database(self):
         cached = self._load_json(self._db_cache_path, None)
@@ -322,11 +358,14 @@ class Plugin:
             try:
                 loop = asyncio.get_event_loop()
                 base_url = url.split(".json")[0].rstrip("/")
-                remote_database = await loop.run_in_executor(None, self._fetch_remote_database, base_url)
+                fetch_args = (base_url, self._etags.copy(), self._database)
+                remote_database, new_etags = await loop.run_in_executor(None, self._fetch_remote_database, *fetch_args)
+                self._etags = new_etags
                 self._set_database(remote_database, "remote", url)
                 self._remote_database_fetched_at = time.time()
                 self._remote_database_error = None
                 await loop.run_in_executor(None, self._save_json, self._db_cache_path, remote_database)
+                await loop.run_in_executor(None, self._save_json, self._etags_path, self._etags)
             except Exception as exc:
                 decky.logger.warning("Failed to fetch remote database: %s", exc)
                 self._remote_database_error = str(exc)
@@ -342,18 +381,29 @@ class Plugin:
         self._hostile_set = set(self._database.get("hostile", []))
         self._ukrainian_set = set(self._database.get("ukrainian", []))
 
-    def _fetch_remote_database(self, base_url):
-        def fetch_node(node):
+    def _fetch_remote_database(self, base_url, etags, existing_db):
+        updated_etags = etags.copy()
+        
+        def fetch_node(node, default_value):
             req = urllib.request.Request(f"{base_url}/{node}.json", headers={"User-Agent": "decky-pohrai-ne-hrai/0.2"})
+            if node in updated_etags:
+                req.add_header("If-None-Match", updated_etags[node])
             try:
                 with urllib.request.urlopen(req, timeout=12, context=SSL_CONTEXT) as response:
-                    return json.loads(response.read().decode("utf-8")) or []
+                    etag = response.headers.get("ETag")
+                    if etag:
+                        updated_etags[node] = etag
+                    return json.loads(response.read().decode("utf-8")) or default_value
+            except urllib.error.HTTPError as e:
+                if e.code == 304:
+                    return existing_db.get(node, default_value)
+                return default_value
             except Exception:
-                return []
+                return default_value
 
-        hostile = fetch_node("hostile")
-        ukrainian = fetch_node("ukrainian")
-        version = fetch_node("version")
+        hostile = fetch_node("hostile", [])
+        ukrainian = fetch_node("ukrainian", [])
+        version = fetch_node("version", "remote")
         
         if not isinstance(hostile, list) or not isinstance(ukrainian, list):
             raise ValueError("Remote database must contain hostile[] and ukrainian[] arrays")
@@ -363,7 +413,7 @@ class Plugin:
             "source": "Firebase Realtime Database",
             "hostile": [name for name in hostile if isinstance(name, str)],
             "ukrainian": [name for name in ukrainian if isinstance(name, str)],
-        }
+        }, updated_etags
 
     def _firebase_json_url(self, url):
         clean_url = url.split("#", 1)[0].strip()
@@ -396,5 +446,10 @@ class Plugin:
             handle.write("\n")
         os.replace(tmp_path, path)
 
-    async def _save_cache(self) -> None:
-        await asyncio.get_event_loop().run_in_executor(None, self._save_json, self._cache_path, self._cache)
+    async def _save_cache(self, force=False):
+        if not force:
+            self._cache_dirty = True
+            return
+        self._cache_dirty = False
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, self._save_json, self._cache_path, self._cache)

@@ -1,5 +1,5 @@
 import { useParams } from "@decky/ui";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import type { AppStatus, PluginSettings } from "./types";
 import { UkrIcon, RusIcon } from "./icons";
 import { t } from "./i18n";
@@ -43,8 +43,13 @@ export default function GamePageBadge({ lookup, getSettings, placement = "librar
   const label = status.type === "hostile" ? t(settings.language, "badge_hostile") : t(settings.language, "badge_friendly");
   const matches = [...status.matches.hostile, ...status.matches.ukrainian].join(", ");
 
-  const positionStyles = getLibraryPositionStyles(settings.libraryBadgePosition);
-  const containerStyle = placement === "store" ? storeContainerStyle : { ...libraryContainerStyle, ...positionStyles };
+  const { containerStyle } = useMemo(() => {
+    const pStyles = getLibraryPositionStyles(settings.libraryBadgePosition);
+    return {
+      positionStyles: pStyles,
+      containerStyle: placement === "store" ? storeContainerStyle : { ...libraryContainerStyle, ...pStyles }
+    };
+  }, [settings.libraryBadgePosition, placement]);
 
   if (isIcon) {
     return (
