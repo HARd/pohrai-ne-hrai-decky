@@ -54,7 +54,10 @@ const getDatabaseStats = callable<[], DatabaseStats>("get_database_stats");
 
 const getPluginVersion = callable<[], string>("get_version");
 const checkPluginUpdate = callable<[], { available: boolean; version?: string; url?: string }>("check_update");
-const applyPluginUpdate = callable<[download_url: string], boolean>("apply_update");
+const applyUpdate = async (downloadUrl: string) => {
+  const result = await serverAPI.callPluginMethod<{download_url: string}, string>("apply_update", { download_url: downloadUrl });
+  return result.success ? result.result : "RPC Error";
+};
 
 function getColorOptions(lang: "uk" | "en") {
   return [
@@ -360,24 +363,14 @@ function Content() {
           <PanelSectionRow>
             <ButtonItem
               layout="below"
-              onClick={async () => {
-                setIsUpdating(true);
-                const success = await applyPluginUpdate(updateInfo.url!);
-                if (success) {
-                  toaster.toast({
-                    title: "Оновлення встановлено",
-                    body: "Перезапуск Decky Loader...",
-                    duration: 3000
-                  });
-                  // It will restart itself on the backend
-                } else {
-                  setIsUpdating(false);
-                  toaster.toast({
-                    title: "Помилка",
-                    body: "Не вдалося встановити оновлення",
-                    duration: 4000
-                  });
-                }
+              onClick={() => {
+                applyUpdate(updateInfo.url!).then((resStr) => {
+                  if (resStr === "OK") {
+                    toaster.toast({ title: "Оновлено", body: "Перезапустіть Steam Deck." });
+                  } else {
+                    toaster.toast({ title: "Помилка", body: "Помилка: " + resStr });
+                  }
+                });
               }}
               disabled={isUpdating}
             >

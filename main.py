@@ -511,8 +511,10 @@ class Plugin:
                 with zipfile.ZipFile(zip_path, 'r') as zip_ref:
                     zip_ref.extractall(extract_dir)
                 
-                plugin_folder = os.path.join(extract_dir, "pohrai-ne-hrai")
-                if not os.path.exists(plugin_folder):
+                extracted_items = os.listdir(extract_dir)
+                if len(extracted_items) == 1 and os.path.isdir(os.path.join(extract_dir, extracted_items[0])):
+                    plugin_folder = os.path.join(extract_dir, extracted_items[0])
+                else:
                     plugin_folder = extract_dir
 
                 decky.logger.info(f"Copying files from {plugin_folder} to {self._plugin_dir}")
@@ -526,9 +528,9 @@ class Plugin:
                 
                 import asyncio
                 asyncio.create_task(_restart_later())
-                return True
+                return "OK"
         except Exception as e:
             decky.logger.error(f"Failed to apply update: {e}")
             import traceback
             decky.logger.error(traceback.format_exc())
-            return False
+            return str(e)
