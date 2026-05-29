@@ -35,14 +35,6 @@ export default function GamePageBadge({ lookup, getSettings, placement = "librar
     };
   }, [appid, lookup]);
 
-  if (!status?.type) return null;
-
-  const isIcon = settings.libraryBadgeStyle === "icon";
-  const iconSrc = status.type === "hostile" ? RusIcon : UkrIcon;
-  const color = status.type === "hostile" ? settings.hostileColor : settings.ukrainianColor;
-  const label = status.type === "hostile" ? t(settings.language, "badge_hostile") : t(settings.language, "badge_friendly");
-  const matches = [...status.matches.hostile, ...status.matches.ukrainian].join(", ");
-
   const { containerStyle } = useMemo(() => {
     const pStyles = getLibraryPositionStyles(settings.libraryBadgePosition);
     return {
@@ -50,6 +42,14 @@ export default function GamePageBadge({ lookup, getSettings, placement = "librar
       containerStyle: placement === "store" ? storeContainerStyle : { ...libraryContainerStyle, ...pStyles }
     };
   }, [settings.libraryBadgePosition, placement]);
+
+  if (!status?.type) return null;
+
+  const isIcon = settings.libraryBadgeStyle === "icon";
+  const iconSrc = status.type === "hostile" ? RusIcon : UkrIcon;
+  const color = status.type === "hostile" ? settings.hostileColor : settings.ukrainianColor;
+  const label = status.type === "hostile" ? t(settings.language, "badge_hostile") : t(settings.language, "badge_friendly");
+  const matches = [...status.matches.hostile, ...status.matches.ukrainian].join(", ");
 
   if (isIcon) {
     return (
