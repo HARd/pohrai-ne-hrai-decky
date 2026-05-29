@@ -1,4 +1,4 @@
-export type MarkType = "hostile" | "ukrainian" | null;
+export type MarkType = "hostile" | "ukrainian" | "in_review" | null;
 
 export interface PluginSettings {
   markHostile: boolean;
@@ -36,6 +36,7 @@ export interface DatabaseStats {
   source: "bundled" | "remote";
   remoteUrl?: string;
   lastRemoteError?: string | null;
+  reportsCount: number;
 }
 
 export interface SearchResults {

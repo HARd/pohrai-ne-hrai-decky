@@ -39,6 +39,10 @@ function getBadgePayload(status: AppStatus, settings: PluginSettings) {
     return null;
   }
   
+  if (status.type === "in_review") {
+    return { type: "in_review" as const };
+  }
+  
   if (!settings.showBadges) return null;
   if (status.type === "hostile" && !settings.markHostile) return null;
   if (status.type === "ukrainian" && !settings.markUkrainian) return null;
@@ -87,7 +91,38 @@ async function injectBadgeIntoStore(appid: string) {
 
     let script = '';
 
-    if (payload.isReport && payload.remoteDatabaseUrl) {
+    if (payload.type === "in_review") {
+      script = `
+        (function() {
+          var existing = document.getElementById('pohrai-ne-hrai-store-badge');
+          if (existing) existing.remove();
+
+          var badge = document.createElement('div');
+          badge.id = 'pohrai-ne-hrai-store-badge';
+          badge.textContent = "⏳ На розгляді";
+          badge.style.cssText = [
+            'position: fixed',
+            'left: 22px',
+            'bottom: 22px',
+            'z-index: 999999',
+            'box-sizing: border-box',
+            'padding: 8px 16px',
+            'border-radius: 8px',
+            'border: 1px solid rgba(255,255,255,0.2)',
+            'background: rgba(30,30,30,0.85)',
+            'backdrop-filter: blur(8px)',
+            'box-shadow: 0 10px 28px rgba(0,0,0,0.5)',
+            'color: #ccc',
+            'font-family: Motiva Sans, Arial, sans-serif',
+            'font-size: 14px',
+            'font-weight: bold',
+            'user-select: none'
+          ].join(';');
+
+          document.body.appendChild(badge);
+        })();
+      `;
+    } else if (payload.isReport && payload.remoteDatabaseUrl) {
       script = `
         (function() {
           var existing = document.getElementById('pohrai-ne-hrai-store-badge');

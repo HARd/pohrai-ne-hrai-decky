@@ -240,6 +240,7 @@ function Content() {
                 <div>{t(lang, "db_version")}: <strong>{db.version}</strong></div>
                 <div>{t(lang, "db_hostile_count")}: <strong>{db.hostileCount}</strong></div>
                 <div>{t(lang, "db_ukr_count")}: <strong>{db.ukrainianCount}</strong></div>
+                <div>{t(lang, "db_reports_count")}: <strong>{db.reportsCount}</strong></div>
                 {db.lastRemoteError && (
                   <div style={{ color: "#e74c3c", marginTop: "4px" }}>
                     {t(lang, "db_error_sync")}: {db.lastRemoteError}

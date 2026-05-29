@@ -105,6 +105,7 @@ class Plugin:
                 "version": self._database.get("version", "unknown"),
                 "hostileCount": len(self._hostile_set),
                 "ukrainianCount": len(self._ukrainian_set),
+                "reportsCount": len(self._database.get("reports", [])),
                 "cacheCount": len(self._cache),
                 "source": self._database_source,
                 "remoteUrl": self._remote_database_url or None,
@@ -243,6 +244,8 @@ class Plugin:
             mark_type = "hostile"
         elif self._settings.get("markUkrainian", True) and ukrainian:
             mark_type = "ukrainian"
+        elif str(appid) in self._database.get("reports", []):
+            mark_type = "in_review"
 
         return {
             "appid": appid,
@@ -405,6 +408,13 @@ class Plugin:
         hostile = fetch_node("hostile", [])
         ukrainian = fetch_node("ukrainian", [])
         version = fetch_node("version", "remote")
+        reports = fetch_node("reports", {})
+        
+        report_appids = []
+        if isinstance(reports, dict):
+            for k, v in reports.items():
+                if isinstance(v, dict) and "appid" in v:
+                    report_appids.append(str(v["appid"]))
         
         if not isinstance(hostile, list) or not isinstance(ukrainian, list):
             raise ValueError("Remote database must contain hostile[] and ukrainian[] arrays")
@@ -414,6 +424,7 @@ class Plugin:
             "source": "Firebase Realtime Database",
             "hostile": [name for name in hostile if isinstance(name, str)],
             "ukrainian": [name for name in ukrainian if isinstance(name, str)],
+            "reports": report_appids,
         }, updated_etags
 
     def _firebase_json_url(self, url):
