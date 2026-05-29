@@ -1,6 +1,6 @@
 {
   "name": "decky-pohrai-ne-hrai",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "Decky Loader plugin that marks Ukrainian and hostile developers in the Steam Deck interface.",
   "type": "module",
   "scripts": {

@@ -276,8 +276,8 @@ class Plugin:
             return False
 
         def _send():
-            req = urllib.request.Request(url, data=json.dumps(data).encode("utf-8"), headers={"Content-Type": "application/json"}, method=method)
             try:
+                req = urllib.request.Request(url, data=json.dumps(data).encode("utf-8"), headers={"Content-Type": "application/json"}, method=method)
                 with urllib.request.urlopen(req, timeout=12, context=SSL_CONTEXT) as response:
                     return response.getcode() == 200
             except Exception as e:

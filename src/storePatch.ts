@@ -180,7 +180,7 @@ async function injectBadgeIntoStore(appid: string) {
             
             var url = ${JSON.stringify(payload.remoteDatabaseUrl)};
             if (!url.endsWith("/")) url += "/";
-            url += "reports/" + readableKey + ".json";
+            url += "reports/" + encodeURIComponent(readableKey) + ".json";
             
             var data = {
               appid: ${JSON.stringify(payload.appid)},
