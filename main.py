@@ -481,9 +481,9 @@ class Plugin:
         return {"available": False}
 
     async def apply_update(self, download_url):
-        import subprocess
         import shutil
         import tempfile
+        import zipfile
         try:
             decky.logger.info(f"Downloading update from {download_url}")
             with tempfile.TemporaryDirectory() as tmpdir:
@@ -493,18 +493,24 @@ class Plugin:
                     shutil.copyfileobj(response, out_file)
                 
                 extract_dir = os.path.join(tmpdir, "extracted")
-                os.makedirs(extract_dir)
-                subprocess.run(["unzip", "-o", zip_path, "-d", extract_dir], check=True)
+                os.makedirs(extract_dir, exist_ok=True)
+                
+                decky.logger.info("Extracting update zip...")
+                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                    zip_ref.extractall(extract_dir)
                 
                 plugin_folder = os.path.join(extract_dir, "pohrai-ne-hrai")
                 if not os.path.exists(plugin_folder):
                     plugin_folder = extract_dir
 
-                subprocess.run(["rsync", "-av", f"{plugin_folder}/", f"{self._plugin_dir}/"], check=True)
+                decky.logger.info(f"Copying files from {plugin_folder} to {self._plugin_dir}")
+                shutil.copytree(plugin_folder, self._plugin_dir, dirs_exist_ok=True)
                 
                 decky.logger.info("Update applied, restarting plugin loader...")
                 os.system("systemctl restart plugin_loader")
                 return True
         except Exception as e:
             decky.logger.error(f"Failed to apply update: {e}")
+            import traceback
+            decky.logger.error(traceback.format_exc())
             return False
