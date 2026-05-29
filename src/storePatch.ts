@@ -189,21 +189,6 @@ async function injectBadgeIntoStore(appid: string) {
               timestamp: Date.now()
             };
             
-            window.__pohrai_report_success = function() {
-              badge.textContent = "✅ Sent!";
-              badge.dataset.sent = "1";
-              badge.style.background = 'rgba(39, 174, 96, 0.85)';
-              setTimeout(function() {
-                badge.style.opacity = '0';
-                setTimeout(function() { badge.remove(); }, 500);
-              }, 2000);
-            };
-
-            window.__pohrai_report_error = function() {
-              badge.textContent = "❌ Error";
-              setTimeout(function() { badge.textContent = "⚠️ Report Game"; }, 2000);
-            };
-
             console.debug("POHRAI_REPORT:" + JSON.stringify({ url: url, data: data, method: "PUT" }));
           };
 
@@ -322,12 +307,35 @@ async function connectToStoreDebugger(retries = 5): Promise<void> {
               const payload = JSON.parse(args[0].value.substring(14));
               reportGameToPython(payload).then((success) => {
                 if (success) {
-                  evaluateInStore('if (window.__pohrai_report_success) window.__pohrai_report_success()');
+                  evaluateInStore(`
+                    var b = document.getElementById('pohrai-ne-hrai-store-badge');
+                    if (b) {
+                      b.textContent = "✅ Sent!";
+                      b.dataset.sent = "1";
+                      b.style.background = 'rgba(39, 174, 96, 0.85)';
+                      setTimeout(function() {
+                        b.style.opacity = '0';
+                        setTimeout(function() { b.remove(); }, 500);
+                      }, 2000);
+                    }
+                  `);
                 } else {
-                  evaluateInStore('if (window.__pohrai_report_error) window.__pohrai_report_error()');
+                  evaluateInStore(`
+                    var b = document.getElementById('pohrai-ne-hrai-store-badge');
+                    if (b) {
+                      b.textContent = "❌ Error";
+                      setTimeout(function() { b.textContent = "⚠️ Report Game"; }, 2000);
+                    }
+                  `);
                 }
               }).catch(() => {
-                evaluateInStore('if (window.__pohrai_report_error) window.__pohrai_report_error()');
+                evaluateInStore(`
+                  var b = document.getElementById('pohrai-ne-hrai-store-badge');
+                  if (b) {
+                    b.textContent = "❌ Error";
+                    setTimeout(function() { b.textContent = "⚠️ Report Game"; }, 2000);
+                  }
+                `);
               });
             } catch (e) {
               console.error("Failed to parse report payload", e);
