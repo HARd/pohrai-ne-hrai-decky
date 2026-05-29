@@ -268,11 +268,12 @@ class Plugin:
         await self._ensure_loaded()
         url = payload.get("url")
         data = payload.get("data")
+        method = payload.get("method", "POST")
         if not url or not data:
             return False
 
         def _send():
-            req = urllib.request.Request(url, data=json.dumps(data).encode("utf-8"), headers={"Content-Type": "application/json"})
+            req = urllib.request.Request(url, data=json.dumps(data).encode("utf-8"), headers={"Content-Type": "application/json"}, method=method)
             try:
                 with urllib.request.urlopen(req, timeout=12, context=SSL_CONTEXT) as response:
                     return response.getcode() == 200
