@@ -1,6 +1,7 @@
 import { callable, fetchNoCors } from "@decky/api";
 import { findModuleExport } from "@decky/ui";
 import type { AppStatus, PluginSettings } from "./types";
+import { t } from "./i18n";
 
 type Lookup = (appid: string) => Promise<AppStatus>;
 type SettingsGetter = () => PluginSettings;
@@ -130,7 +131,7 @@ async function injectBadgeIntoStore(appid: string) {
 
           var badge = document.createElement('div');
           badge.id = 'varta-store-badge';
-          badge.textContent = "⚠️ Report Game";
+          badge.textContent = ${JSON.stringify(t(currentSettingsGetter!().language, "report_btn"))};
           badge.style.cssText = [
             'position: fixed',
             'left: 22px',
@@ -164,8 +165,9 @@ async function injectBadgeIntoStore(appid: string) {
           };
 
           badge.onclick = function() {
+            badge.style.cursor = 'wait';
             if (badge.dataset.sent === "1") return;
-            badge.textContent = "⏳ Sending...";
+            badge.textContent = ${JSON.stringify(t(currentSettingsGetter!().language, "report_sending"))};
             
             var appName = document.querySelector('.apphub_AppName');
             var name = appName ? appName.textContent.trim() : "Unknown";
@@ -308,7 +310,7 @@ async function connectToStoreDebugger(retries = 5): Promise<void> {
                   evaluateInStore(`
                     var b = document.getElementById('varta-store-badge');
                     if (b) {
-                      b.textContent = "✅ Sent!";
+                      b.textContent = ${JSON.stringify(t(currentSettingsGetter!().language, "report_sent"))};
                       b.dataset.sent = "1";
                       b.style.background = 'rgba(39, 174, 96, 0.85)';
                       setTimeout(function() {
@@ -321,8 +323,8 @@ async function connectToStoreDebugger(retries = 5): Promise<void> {
                   evaluateInStore(`
                     var b = document.getElementById('varta-store-badge');
                     if (b) {
-                      b.textContent = "❌ Error";
-                      setTimeout(function() { b.textContent = "⚠️ Report Game"; }, 2000);
+                      b.textContent = ${JSON.stringify(t(currentSettingsGetter!().language, "report_error"))};
+                      setTimeout(function() { b.textContent = ${JSON.stringify(t(currentSettingsGetter!().language, "report_btn"))}; }, 2000);
                     }
                   `);
                 }
@@ -330,8 +332,8 @@ async function connectToStoreDebugger(retries = 5): Promise<void> {
                 evaluateInStore(`
                   var b = document.getElementById('varta-store-badge');
                   if (b) {
-                    b.textContent = "❌ Error";
-                    setTimeout(function() { b.textContent = "⚠️ Report Game"; }, 2000);
+                    b.textContent = ${JSON.stringify(t(currentSettingsGetter!().language, "report_error"))};
+                    setTimeout(function() { b.textContent = ${JSON.stringify(t(currentSettingsGetter!().language, "report_btn"))}; }, 2000);
                   }
                 `);
               });
