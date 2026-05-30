@@ -58,10 +58,6 @@ class Plugin:
             self._data_path = os.path.join(self._plugin_dir, "data", "developers.json")
             self._settings_path = os.path.join(decky.DECKY_PLUGIN_SETTINGS_DIR, "settings.json")
             
-            steam_lang = os.getenv("STEAM_LANGUAGE", "english")
-            mapped_lang = STEAM_LANGUAGE_MAP.get(steam_lang, "en")
-            DEFAULT_SETTINGS["language"] = mapped_lang
-            
             if not os.path.exists(self._settings_path):
                 self._settings = {}
                 self._is_fresh = True
