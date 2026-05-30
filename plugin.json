@@ -1,0 +1,11 @@
+{
+  "name": "VARTA",
+  "author": "VARTA contributors",
+  "flags": [],
+  "api_version": 1,
+  "publish": {
+    "tags": ["steam", "ukraine", "library"],
+    "description": "Marks Ukrainian and hostile game developers directly in the Steam Deck UI.",
+    "image": ""
+  }
+}
