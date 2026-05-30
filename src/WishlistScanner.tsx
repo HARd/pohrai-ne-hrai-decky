@@ -25,6 +25,16 @@ export const WishlistScanner: FC<WishlistScannerProps> = ({ getAppStatus, lang }
 
   const getSessionId = async () => {
     try {
+      const win = window as any;
+      if (win.g_sessionID) return win.g_sessionID;
+      if (win.SteamClient?.User?.GetSessionID) return win.SteamClient.User.GetSessionID();
+      if (win.SteamClient?.Auth?.GetSessionID) return win.SteamClient.Auth.GetSessionID();
+      if (win.SteamClient?.UserStore?.sessionid) return win.SteamClient.UserStore.sessionid;
+
+      const matchCookie = document.cookie.match(/sessionid=([^;]+)/);
+      if (matchCookie) return matchCookie[1];
+
+      // Fallback to fetch (often blocked by CSP on Steam Deck)
       let res = await fetch("https://store.steampowered.com/", { credentials: "include" });
       let text = await res.text();
       let match = text.match(/g_sessionID\s*=\s*"([^"]+)"/) || text.match(/data-sessionid="([^"]+)"/) || text.match(/sessionid=([^;"]+)/);
@@ -38,15 +48,15 @@ export const WishlistScanner: FC<WishlistScannerProps> = ({ getAppStatus, lang }
       console.error("Could not find sessionID in HTML. Lengths:", text.length);
       toaster.toast({
         title: "Помилка Wishlist",
-        body: "Не вдалося знайти sessionID. Потрібна авторизація.",
+        body: "Не вдалося знайти sessionID локально або через fetch.",
         duration: 4000,
       });
       return null;
     } catch (e: any) {
       console.error("Failed to get sessionID", e);
       toaster.toast({
-        title: "Помилка запиту",
-        body: e.message || String(e),
+        title: "Помилка доступу (CSP/CORS)",
+        body: "Браузер Steam Deck блокує запит. Спробуйте вручну.",
         duration: 4000,
       });
       return null;
@@ -93,14 +103,36 @@ export const WishlistScanner: FC<WishlistScannerProps> = ({ getAppStatus, lang }
   };
 
   const removeHostileGames = async () => {
-    const sessionId = await getSessionId();
-    if (!sessionId) {
-      console.error("Could not find session ID");
-      return;
-    }
-
     setIsDeleting(true);
     try {
+      const win = window as any;
+      
+      // 1. Try native Steam API first
+      if (win.SteamClient?.Store?.SetWishlist) {
+        for (const game of hostileGames) {
+          await win.SteamClient.Store.SetWishlist(parseInt(game.appid), false);
+        }
+        setHostileGames([]);
+        toaster.toast({ title: "Успіх", body: "Ігри видалено через Steam API!", duration: 4000 });
+        setIsDeleting(false);
+        return;
+      }
+      if (win.SteamClient?.StoreItems?.SetWishlist) {
+        for (const game of hostileGames) {
+          await win.SteamClient.StoreItems.SetWishlist(parseInt(game.appid), false);
+        }
+        setHostileGames([]);
+        toaster.toast({ title: "Успіх", body: "Ігри видалено через StoreItems API!", duration: 4000 });
+        setIsDeleting(false);
+        return;
+      }
+
+      // 2. Fallback to raw fetch if sessionID can be found
+      const sessionId = await getSessionId();
+      if (!sessionId) {
+        setIsDeleting(false);
+        return;
+      }
       for (const game of hostileGames) {
         await fetch("https://store.steampowered.com/api/removefromwishlist", {
           method: "POST",
