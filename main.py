@@ -219,23 +219,45 @@ class Plugin:
         if not appid:
             return self._empty_status(appid)
 
+        if not hasattr(self, "_inflight"):
+            self._inflight = {}
+
         async with self._lock:
             cached = self._cache.get(appid)
             if cached and time.time() - cached.get("fetchedAt", 0) < CACHE_TTL_SECONDS:
                 return self._mark_status(appid, cached.get("name", "Unknown Game"), cached.get("developers", []), cached.get("publishers", []))
 
-        details = await asyncio.get_event_loop().run_in_executor(None, self._fetch_appdetails, appid)
-        if not details:
+            if appid in self._inflight:
+                event = self._inflight[appid]
+                do_fetch = False
+            else:
+                event = asyncio.Event()
+                self._inflight[appid] = event
+                do_fetch = True
+
+        if do_fetch:
+            details = await asyncio.get_event_loop().run_in_executor(None, self._fetch_appdetails, appid)
+            async with self._lock:
+                if details:
+                    self._cache[appid] = {
+                        "name": details.get("name", "Unknown Game"),
+                        "developers": details.get("developers", []),
+                        "publishers": details.get("publishers", []),
+                        "fetchedAt": int(time.time()),
+                    }
+                    await self._save_cache()
+                event.set()
+                del self._inflight[appid]
+        else:
+            await event.wait()
+            async with self._lock:
+                cached = self._cache.get(appid)
+            if cached:
+                return self._mark_status(appid, cached.get("name", "Unknown Game"), cached.get("developers", []), cached.get("publishers", []))
             return self._empty_status(appid)
 
-        async with self._lock:
-            self._cache[appid] = {
-                "name": details.get("name", "Unknown Game"),
-                "developers": details.get("developers", []),
-                "publishers": details.get("publishers", []),
-                "fetchedAt": int(time.time()),
-            }
-            await self._save_cache()
+        if not details:
+            return self._empty_status(appid)
 
         return self._mark_status(appid, details.get("name", "Unknown Game"), details.get("developers", []), details.get("publishers", []))
 
@@ -409,29 +431,30 @@ class Plugin:
         self._ukrainian_set = set(self._database.get("ukrainian", []))
 
     def _fetch_remote_database(self, base_url, etags, existing_db):
-        updated_etags = etags.copy()
-        
-        def fetch_node(node, default_value):
-            req = urllib.request.Request(f"{base_url}/{node}.json", headers={"User-Agent": "varta-decky/0.2"})
-            if node in updated_etags:
-                req.add_header("If-None-Match", updated_etags[node])
-            try:
-                with urllib.request.urlopen(req, timeout=12, context=SSL_CONTEXT) as response:
-                    etag = response.headers.get("ETag")
-                    if etag:
-                        updated_etags[node] = etag
-                    return json.loads(response.read().decode("utf-8")) or default_value
-            except urllib.error.HTTPError as e:
-                if e.code == 304:
-                    return existing_db.get(node, default_value)
-                return default_value
-            except Exception:
-                return default_value
+        req = urllib.request.Request(f"{base_url}/.json", headers={"User-Agent": "varta-decky/0.2"})
+        if "root" in etags:
+            req.add_header("If-None-Match", etags["root"])
+            
+        try:
+            with urllib.request.urlopen(req, timeout=12, context=SSL_CONTEXT) as response:
+                etag = response.headers.get("ETag")
+                if etag:
+                    etags["root"] = etag
+                data = json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            if e.code == 304:
+                return existing_db, etags
+            return existing_db, etags
+        except Exception:
+            return existing_db, etags
+            
+        if not data or not isinstance(data, dict):
+            return existing_db, etags
 
-        hostile = fetch_node("hostile", [])
-        ukrainian = fetch_node("ukrainian", [])
-        version = fetch_node("version", "remote")
-        reports = fetch_node("reports", {})
+        hostile = data.get("hostile", [])
+        ukrainian = data.get("ukrainian", [])
+        version = data.get("version", "remote")
+        reports = data.get("reports", {})
         
         report_appids = []
         if isinstance(reports, dict):
@@ -448,7 +471,7 @@ class Plugin:
             "hostile": [name for name in hostile if isinstance(name, str)],
             "ukrainian": [name for name in ukrainian if isinstance(name, str)],
             "reports": report_appids,
-        }, updated_etags
+        }, etags
 
     def _firebase_json_url(self, url):
         clean_url = url.split("#", 1)[0].strip()
@@ -489,101 +512,4 @@ class Plugin:
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(None, self._save_json, self._cache_path, self._cache)
 
-    async def get_version(self):
-        try:
-            pkg_path = os.path.join(self._plugin_dir, "package.json")
-            with open(pkg_path, "r") as f:
-                return json.load(f).get("version", "0.0.0")
-        except Exception:
-            return "0.0.0"
 
-    async def check_update(self):
-        try:
-            current = await self.get_version()
-            url = "https://api.github.com/repos/HARd/varta-decky/releases/latest"
-            req = urllib.request.Request(url, headers={"User-Agent": "varta-decky/0.1"})
-            with urllib.request.urlopen(req, timeout=12, context=SSL_CONTEXT) as response:
-                if response.getcode() == 200:
-                    data = json.loads(response.read().decode("utf-8"))
-                    latest = data.get("tag_name", "").lstrip("v")
-                    if latest and latest != current:
-                        assets = data.get("assets", [])
-                        if assets:
-                            download_url = assets[0].get("browser_download_url")
-                            return {"available": True, "version": latest, "url": download_url}
-        except Exception as e:
-            decky.logger.error(f"Failed to check update: {e}")
-        return {"available": False}
-
-    async def apply_update(self, download_url):
-        import shutil
-        import tempfile
-        import zipfile
-        try:
-            decky.logger.info(f"Downloading update from {download_url}")
-            with tempfile.TemporaryDirectory() as tmpdir:
-                zip_path = os.path.join(tmpdir, "update.zip")
-                req = urllib.request.Request(download_url, headers={"User-Agent": "varta-decky/0.1"})
-                with urllib.request.urlopen(req, timeout=30, context=SSL_CONTEXT) as response, open(zip_path, "wb") as out_file:
-                    shutil.copyfileobj(response, out_file)
-                
-                extract_dir = os.path.join(tmpdir, "extracted")
-                os.makedirs(extract_dir, exist_ok=True)
-                
-                decky.logger.info("Extracting update zip...")
-                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                    zip_ref.extractall(extract_dir)
-                
-                extracted_items = os.listdir(extract_dir)
-                if len(extracted_items) == 1 and os.path.isdir(os.path.join(extract_dir, extracted_items[0])):
-                    plugin_folder = os.path.join(extract_dir, extracted_items[0])
-                else:
-                    plugin_folder = extract_dir
-
-                decky.logger.info(f"Copying files from {plugin_folder} to {self._plugin_dir}")
-                import shutil
-                import stat
-
-                def remove_readonly(func, path, excinfo):
-                    try:
-                        os.chmod(path, stat.S_IWRITE)
-                        func(path)
-                    except Exception as e:
-                        decky.logger.warning(f"Failed to remove_readonly {path}: {e}")
-
-                # Unlink old files
-                for item in os.listdir(self._plugin_dir):
-                    if item in ["data", "settings"]: continue
-                    p = os.path.join(self._plugin_dir, item)
-                    try:
-                        if os.path.isdir(p):
-                            shutil.rmtree(p, onerror=remove_readonly)
-                        else:
-                            os.chmod(p, stat.S_IWRITE)
-                            os.remove(p)
-                    except Exception as e:
-                        decky.logger.warning(f"Failed to remove {p} before update: {e}")
-
-                # Copy new files
-                for item in os.listdir(plugin_folder):
-                    s = os.path.join(plugin_folder, item)
-                    d = os.path.join(self._plugin_dir, item)
-                    if os.path.isdir(s):
-                        shutil.copytree(s, d, dirs_exist_ok=True)
-                    else:
-                        shutil.copy2(s, d)
-                
-                decky.logger.info("Update applied, scheduling plugin loader restart in 2 seconds...")
-                async def _restart_later():
-                    import asyncio
-                    await asyncio.sleep(2)
-                    os.system("systemctl restart plugin_loader")
-                
-                import asyncio
-                asyncio.create_task(_restart_later())
-                return "OK"
-        except Exception as e:
-            decky.logger.error(f"Failed to apply update: {e}")
-            import traceback
-            decky.logger.error(traceback.format_exc())
-            return str(e)

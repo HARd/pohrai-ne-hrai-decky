@@ -82,16 +82,25 @@ export const WishlistScanner: FC<WishlistScannerProps> = ({ getAppStatus, lang }
 
       const foundHostiles: AppStatus[] = [];
 
-      for (let i = 0; i < appids.length; i++) {
-        const appid = String(appids[i]);
-        const status = await getAppStatus(appid);
-        
-        if (status.type === "hostile") {
-          foundHostiles.push(status);
-          setHostileGames([...foundHostiles]);
-        }
-        
-        setScannedCount(i + 1);
+      const CHUNK_SIZE = 10;
+      let completed = 0;
+
+      for (let i = 0; i < appids.length; i += CHUNK_SIZE) {
+        const chunk = appids.slice(i, i + CHUNK_SIZE);
+        await Promise.all(
+          chunk.map(async (numAppid) => {
+            const appid = String(numAppid);
+            const status = await getAppStatus(appid);
+            
+            if (status.type === "hostile") {
+              foundHostiles.push(status);
+            }
+            completed++;
+            setScannedCount(completed);
+          })
+        );
+        // Оновлюємо стан після кожного чанка, щоб не перевантажувати React
+        setHostileGames([...foundHostiles]);
       }
       
       setScanComplete(true);
@@ -144,13 +153,31 @@ export const WishlistScanner: FC<WishlistScannerProps> = ({ getAppStatus, lang }
           body: `sessionid=${sessionId}&appid=${game.appid}`
         });
       }
-      // Clear list after successful deletion
-      setHostileGames([]);
-      toaster.toast({
-        title: "Успіх",
-        body: "Ігри успішно видалено зі списку бажаного!",
-        duration: 4000,
+      // Control check: verify if the games actually disappeared
+      const checkRes = await fetch(`https://store.steampowered.com/dynamicstore/userdata/?_=${Date.now()}`, {
+        credentials: "include",
+        cache: "no-store"
       });
+      const checkData = await checkRes.json();
+      const currentWishlist: number[] = checkData.rgWishlist || [];
+      
+      const stillInWishlist = hostileGames.filter(g => currentWishlist.includes(parseInt(g.appid)));
+      
+      if (stillInWishlist.length > 0) {
+        setHostileGames(stillInWishlist);
+        toaster.toast({
+          title: "Увага",
+          body: `Вдалося видалити не все. Залишилося ${stillInWishlist.length} ігор.`,
+          duration: 4000,
+        });
+      } else {
+        setHostileGames([]);
+        toaster.toast({
+          title: "Успіх",
+          body: "Ігри успішно видалено зі списку бажаного!",
+          duration: 4000,
+        });
+      }
     } catch (e: any) {
       console.error("Failed to remove games", e);
       toaster.toast({
