@@ -48,6 +48,13 @@ export const i18n = {
     db_error: "Помилка завантаження бекенду",
     db_error_sync: "Помилка синхронізації",
     loading: "Завантаження...",
+    section_wishlist: "Очищення Wishlist",
+    wishlist_scan: "Просканувати мій список бажаного",
+    wishlist_scanning: "Сканування {c}/{t}...",
+    wishlist_clean: "У вашому списку бажаного чисто!",
+    wishlist_found: "Знайдено ворожих ігор: {c}",
+    wishlist_remove: "Видалити знайдені ігри",
+    wishlist_removing: "Видалення...",
   },
   en: {
     menu_hostile_dev: "Mark hostile developers",
@@ -96,6 +103,13 @@ export const i18n = {
     db_error: "Backend load error",
     db_error_sync: "Sync error",
     loading: "Loading...",
+    section_wishlist: "Wishlist Cleaner",
+    wishlist_scan: "Scan my Wishlist",
+    wishlist_scanning: "Scanning {c}/{t}...",
+    wishlist_clean: "No hostile games in your wishlist!",
+    wishlist_found: "Found {c} hostile games",
+    wishlist_remove: "Remove found games",
+    wishlist_removing: "Removing...",
   }
 };
 

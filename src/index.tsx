@@ -26,6 +26,7 @@ import {
 } from "./localBackend";
 import { patchLibraryApp } from "./patchLibraryApp";
 import { initStorePatch, refreshStorePatch } from "./storePatch";
+import { WishlistScanner } from "./WishlistScanner";
 import type { AppStatus, PluginSettings, DatabaseStats } from "./types";
 import { t } from "./i18n";
 
@@ -361,6 +362,8 @@ function Content() {
           />
         </PanelSectionRow>
       </PanelSection>
+
+      <WishlistScanner getAppStatus={getResolvedAppStatus} lang={lang} />
 
       <PanelSection title="Оновлення (Updates)">
         <PanelSectionRow>

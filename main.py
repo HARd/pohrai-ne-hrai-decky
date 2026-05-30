@@ -222,7 +222,7 @@ class Plugin:
         async with self._lock:
             cached = self._cache.get(appid)
             if cached and time.time() - cached.get("fetchedAt", 0) < CACHE_TTL_SECONDS:
-                return self._mark_status(appid, cached.get("developers", []), cached.get("publishers", []))
+                return self._mark_status(appid, cached.get("name", "Unknown Game"), cached.get("developers", []), cached.get("publishers", []))
 
         details = await asyncio.get_event_loop().run_in_executor(None, self._fetch_appdetails, appid)
         if not details:
@@ -230,13 +230,14 @@ class Plugin:
 
         async with self._lock:
             self._cache[appid] = {
+                "name": details.get("name", "Unknown Game"),
                 "developers": details.get("developers", []),
                 "publishers": details.get("publishers", []),
                 "fetchedAt": int(time.time()),
             }
             await self._save_cache()
 
-        return self._mark_status(appid, details.get("developers", []), details.get("publishers", []))
+        return self._mark_status(appid, details.get("name", "Unknown Game"), details.get("developers", []), details.get("publishers", []))
 
     async def search_database(self, query, limit=40):
         await self._ensure_loaded()
@@ -253,7 +254,7 @@ class Plugin:
             "ukrainian": search(self._database.get("ukrainian", [])),
         }
 
-    def _mark_status(self, appid, developers, publishers):
+    def _mark_status(self, appid, name, developers, publishers):
         names = [*developers, *publishers]
         hostile = [name for name in names if name in self._hostile_set]
         ukrainian = [name for name in names if name in self._ukrainian_set]
@@ -267,6 +268,7 @@ class Plugin:
 
         return {
             "appid": appid,
+            "name": name,
             "type": mark_type,
             "developers": developers,
             "publishers": publishers,
@@ -279,6 +281,7 @@ class Plugin:
     def _empty_status(self, appid):
         return {
             "appid": appid,
+            "name": "Unknown Game",
             "type": None,
             "developers": [],
             "publishers": [],
@@ -320,6 +323,7 @@ class Plugin:
             if entry and entry.get("success") and entry.get("data"):
                 data = entry["data"]
                 return {
+                    "name": data.get("name") or "Unknown Game",
                     "developers": data.get("developers") or [],
                     "publishers": data.get("publishers") or [],
                 }
@@ -338,8 +342,9 @@ class Plugin:
                     
                     if devs or pubs:
                         return {
-                            "developers": [d for d in devs if d],
-                            "publishers": [p for p in pubs if p],
+                            "name": spy_payload.get("name", "Unknown Game"),
+                            "developers": devs,
+                            "publishers": pubs,
                         }
         except Exception as exc:
             decky.logger.warning("Failed to fetch appdetails from SteamSpy for %s: %s", appid, exc)
