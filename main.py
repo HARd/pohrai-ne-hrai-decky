@@ -277,7 +277,7 @@ class Plugin:
         }
 
     def _mark_status(self, appid, name, developers, publishers):
-        names = [*developers, *publishers]
+        names = list(dict.fromkeys([*developers, *publishers]))
         hostile = [name for name in names if name in self._hostile_set]
         ukrainian = [name for name in names if name in self._ukrainian_set]
         mark_type = None
