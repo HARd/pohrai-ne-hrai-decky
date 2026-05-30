@@ -431,30 +431,29 @@ class Plugin:
         self._ukrainian_set = set(self._database.get("ukrainian", []))
 
     def _fetch_remote_database(self, base_url, etags, existing_db):
-        req = urllib.request.Request(f"{base_url}/.json", headers={"User-Agent": "varta-decky/0.2"})
-        if "root" in etags:
-            req.add_header("If-None-Match", etags["root"])
-            
-        try:
-            with urllib.request.urlopen(req, timeout=12, context=SSL_CONTEXT) as response:
-                etag = response.headers.get("ETag")
-                if etag:
-                    etags["root"] = etag
-                data = json.loads(response.read().decode("utf-8"))
-        except urllib.error.HTTPError as e:
-            if e.code == 304:
-                return existing_db, etags
-            return existing_db, etags
-        except Exception:
-            return existing_db, etags
-            
-        if not data or not isinstance(data, dict):
-            return existing_db, etags
+        updated_etags = etags.copy()
+        
+        def fetch_node(node, default_value):
+            req = urllib.request.Request(f"{base_url}/{node}.json", headers={"User-Agent": "varta-decky/0.2"})
+            if node in updated_etags:
+                req.add_header("If-None-Match", updated_etags[node])
+            try:
+                with urllib.request.urlopen(req, timeout=12, context=SSL_CONTEXT) as response:
+                    etag = response.headers.get("ETag")
+                    if etag:
+                        updated_etags[node] = etag
+                    return json.loads(response.read().decode("utf-8")) or default_value
+            except urllib.error.HTTPError as e:
+                if e.code == 304:
+                    return existing_db.get(node, default_value)
+                return default_value
+            except Exception:
+                return default_value
 
-        hostile = data.get("hostile", [])
-        ukrainian = data.get("ukrainian", [])
-        version = data.get("version", "remote")
-        reports = data.get("reports", {})
+        hostile = fetch_node("hostile", [])
+        ukrainian = fetch_node("ukrainian", [])
+        version = fetch_node("version", "remote")
+        reports = fetch_node("reports", {})
         
         report_appids = []
         if isinstance(reports, dict):
@@ -471,7 +470,7 @@ class Plugin:
             "hostile": [name for name in hostile if isinstance(name, str)],
             "ukrainian": [name for name in ukrainian if isinstance(name, str)],
             "reports": report_appids,
-        }, etags
+        }, updated_etags
 
     def _firebase_json_url(self, url):
         clean_url = url.split("#", 1)[0].strip()
