@@ -541,21 +541,37 @@ class Plugin:
                     plugin_folder = extract_dir
 
                 decky.logger.info(f"Copying files from {plugin_folder} to {self._plugin_dir}")
-                import subprocess
-                
-                env = {"PATH": "/usr/bin:/bin:/usr/local/bin"}
-                
+                import shutil
+                import stat
+
+                def remove_readonly(func, path, excinfo):
+                    try:
+                        os.chmod(path, stat.S_IWRITE)
+                        func(path)
+                    except Exception as e:
+                        decky.logger.warning(f"Failed to remove_readonly {path}: {e}")
+
                 # Unlink old files
                 for item in os.listdir(self._plugin_dir):
                     if item in ["data", "settings"]: continue
                     p = os.path.join(self._plugin_dir, item)
-                    subprocess.run(["rm", "-rf", p], env=env)
+                    try:
+                        if os.path.isdir(p):
+                            shutil.rmtree(p, onerror=remove_readonly)
+                        else:
+                            os.chmod(p, stat.S_IWRITE)
+                            os.remove(p)
+                    except Exception as e:
+                        decky.logger.warning(f"Failed to remove {p} before update: {e}")
 
                 # Copy new files
-                cmd = ["cp", "-a", f"{plugin_folder}/.", f"{self._plugin_dir}/"]
-                result = subprocess.run(cmd, capture_output=True, text=True, env=env)
-                if result.returncode != 0:
-                    raise Exception(f"Copy failed (code {result.returncode}): {result.stderr}")
+                for item in os.listdir(plugin_folder):
+                    s = os.path.join(plugin_folder, item)
+                    d = os.path.join(self._plugin_dir, item)
+                    if os.path.isdir(s):
+                        shutil.copytree(s, d, dirs_exist_ok=True)
+                    else:
+                        shutil.copy2(s, d)
                 
                 decky.logger.info("Update applied, scheduling plugin loader restart in 2 seconds...")
                 async def _restart_later():
