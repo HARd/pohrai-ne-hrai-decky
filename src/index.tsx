@@ -115,11 +115,22 @@ function Content() {
         .then((loadedSettings) => {
           fetchedFromPython = true;
           if (!mounted) return;
-          const merged = { ...DEFAULT_SETTINGS, ...loadedSettings };
+          
+          let merged: PluginSettings;
+          if (loadedSettings && (loadedSettings as any)._is_fresh) {
+            // Backend is fresh (e.g. after reinstall), push local settings to backend
+            merged = activeSettings;
+            void serverAPI.callPluginMethod("save_settings", { settings: merged });
+          } else {
+            // Backend has existing settings, prefer backend over local
+            merged = { ...DEFAULT_SETTINGS, ...loadedSettings };
+            delete (merged as any)._is_fresh;
+            saveLocalSettings(merged);
+          }
+          
           activeSettings = merged;
           setSettings(merged);
           setIsLoaded(true);
-          saveLocalSettings(merged);
           startSteamUiInjection(getResolvedAppStatus, merged);
         })
         .catch(() => {

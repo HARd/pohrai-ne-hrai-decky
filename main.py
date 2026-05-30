@@ -57,12 +57,23 @@ class Plugin:
             self._plugin_dir = os.path.dirname(os.path.realpath(__file__))
             self._data_path = os.path.join(self._plugin_dir, "data", "developers.json")
             self._settings_path = os.path.join(decky.DECKY_PLUGIN_SETTINGS_DIR, "settings.json")
+            
+            steam_lang = os.getenv("STEAM_LANGUAGE", "english")
+            mapped_lang = STEAM_LANGUAGE_MAP.get(steam_lang, "en")
+            DEFAULT_SETTINGS["language"] = mapped_lang
+            
+            if not os.path.exists(self._settings_path):
+                self._settings = {}
+                self._is_fresh = True
+            else:
+                self._settings = self._load_json(self._settings_path, DEFAULT_SETTINGS)
+                self._is_fresh = False
+            
             self._cache_path = os.path.join(decky.DECKY_PLUGIN_RUNTIME_DIR, "appdetails-cache.json")
             self._db_cache_path = os.path.join(decky.DECKY_PLUGIN_RUNTIME_DIR, "database-cache.json")
             self._etags_path = os.path.join(decky.DECKY_PLUGIN_RUNTIME_DIR, "etags.json")
             self._lock = asyncio.Lock()
             self._database = self._load_database()
-            self._settings = self._load_json(self._settings_path, DEFAULT_SETTINGS)
             self._cache = self._load_json(self._cache_path, {})
             self._etags = self._load_json(self._etags_path, {})
             self._database_source = "bundled"
@@ -76,6 +87,7 @@ class Plugin:
             decky.logger.info(f"VARTA loaded {len(self._hostile_set)} hostile and {len(self._ukrainian_set)} Ukrainian entries")
 
             asyncio.create_task(self._refresh_database())
+            asyncio.create_task(self._auto_refresh_loop())
             asyncio.create_task(self._cache_saver_loop())
         except Exception as e:
             decky.logger.error(f"Failed to load Ne Hrai SD backend: {e}")
@@ -117,9 +129,19 @@ class Plugin:
             decky.logger.error(f"VARTA get_database_stats error:\n{err_trace}")
             return {"error": err_trace}
 
+    async def _auto_refresh_loop(self):
+        while True:
+            await asyncio.sleep(3600)  # 1 hour
+            decky.logger.info("Auto-refreshing VARTA database...")
+            try:
+                await self._refresh_database()
+            except Exception as e:
+                decky.logger.error(f"Auto-refresh failed: {e}")
+
     async def get_settings(self):
-        await self._ensure_loaded()
-        return {**DEFAULT_SETTINGS, **self._settings}
+        res = {**DEFAULT_SETTINGS, **self._settings}
+        res["_is_fresh"] = getattr(self, "_is_fresh", False)
+        return res
 
     async def save_settings(self, *args, **kwargs):
         decky.logger.info(f"save_settings called with args={args} kwargs={kwargs}")
