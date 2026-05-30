@@ -48,6 +48,7 @@ const DEFAULT_SETTINGS: PluginSettings = {
 
 const getAppStatus = callable<[appid: string], AppStatus>("get_app_status");
 const getSettings = callable<[], PluginSettings>("get_settings");
+const saveSettings = callable<[{settings: PluginSettings}], PluginSettings>("save_settings");
 const setSetting = callable<[{key: string, value: any}], PluginSettings>("set_setting");
 const refreshDatabase = callable<[force: boolean], DatabaseStats>("refresh_database");
 const getDatabaseStats = callable<[], DatabaseStats>("get_database_stats");
@@ -120,7 +121,7 @@ function Content() {
           if (loadedSettings && (loadedSettings as any)._is_fresh) {
             // Backend is fresh (e.g. after reinstall), push local settings to backend
             merged = activeSettings;
-            void serverAPI.callPluginMethod("save_settings", { settings: merged });
+            void saveSettings({ settings: merged });
           } else {
             // Backend has existing settings, prefer backend over local
             merged = { ...DEFAULT_SETTINGS, ...loadedSettings };
