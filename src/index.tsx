@@ -364,60 +364,6 @@ function Content() {
       </PanelSection>
 
       <WishlistScanner getAppStatus={getResolvedAppStatus} lang={lang} />
-
-      <PanelSection title="Оновлення (Updates)">
-        <PanelSectionRow>
-          <div style={fieldStyle}>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>Поточна версія:</span>
-              <span>{pluginVersion}</span>
-            </div>
-          </div>
-        </PanelSectionRow>
-        
-        {updateInfo?.available && updateInfo.url ? (
-          <PanelSectionRow>
-            <ButtonItem
-              layout="below"
-              onClick={async () => {
-                setIsUpdating(true);
-                const resStr = await applyPluginUpdate(updateInfo.url!);
-                if (resStr === "OK") {
-                  toaster.toast({ title: "Оновлено", body: "Перезапустіть Steam Deck." });
-                } else {
-                  setIsUpdating(false);
-                  toaster.toast({ title: "Помилка", body: "Помилка: " + resStr });
-                }
-              }}
-              disabled={isUpdating}
-            >
-              {isUpdating ? "Встановлення..." : `Оновити до v${updateInfo.version}`}
-            </ButtonItem>
-          </PanelSectionRow>
-        ) : (
-          <PanelSectionRow>
-            <ButtonItem
-              layout="below"
-              onClick={async () => {
-                setIsCheckingUpdate(true);
-                const info = await checkPluginUpdate();
-                setIsCheckingUpdate(false);
-                setUpdateInfo(info);
-                if (!info.available) {
-                  toaster.toast({
-                    title: "Оновлення",
-                    body: "У вас встановлена остання версія!",
-                    duration: 3000
-                  });
-                }
-              }}
-              disabled={isCheckingUpdate || isUpdating}
-            >
-              {isCheckingUpdate ? "Перевірка..." : "Перевірити оновлення"}
-            </ButtonItem>
-          </PanelSectionRow>
-        )}
-      </PanelSection>
     </>
   );
 }
