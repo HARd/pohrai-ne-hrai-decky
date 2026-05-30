@@ -518,7 +518,9 @@ class Plugin:
                     plugin_folder = extract_dir
 
                 decky.logger.info(f"Copying files from {plugin_folder} to {self._plugin_dir}")
-                shutil.copytree(plugin_folder, self._plugin_dir, dirs_exist_ok=True)
+                ret = os.system(f"cp -rf '{plugin_folder}/.' '{self._plugin_dir}/'")
+                if ret != 0:
+                    raise Exception(f"Copy failed with exit code {ret}")
                 
                 decky.logger.info("Update applied, scheduling plugin loader restart in 2 seconds...")
                 async def _restart_later():
