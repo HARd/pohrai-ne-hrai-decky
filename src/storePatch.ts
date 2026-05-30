@@ -71,7 +71,7 @@ function evaluateInStore(expression: string) {
 function removeBadgeFromStore() {
   evaluateInStore(`
     (function() {
-      var badge = document.getElementById('pohrai-ne-hrai-store-badge');
+      var badge = document.getElementById('varta-store-badge');
       if (badge) badge.remove();
     })();
   `);
@@ -94,11 +94,11 @@ async function injectBadgeIntoStore(appid: string) {
     if (payload.type === "in_review") {
       script = `
         (function() {
-          var existing = document.getElementById('pohrai-ne-hrai-store-badge');
+          var existing = document.getElementById('varta-store-badge');
           if (existing) existing.remove();
 
           var badge = document.createElement('div');
-          badge.id = 'pohrai-ne-hrai-store-badge';
+          badge.id = 'varta-store-badge';
           badge.textContent = "⏳ На розгляді";
           badge.style.cssText = [
             'position: fixed',
@@ -125,11 +125,11 @@ async function injectBadgeIntoStore(appid: string) {
     } else if (payload.isReport && payload.remoteDatabaseUrl) {
       script = `
         (function() {
-          var existing = document.getElementById('pohrai-ne-hrai-store-badge');
+          var existing = document.getElementById('varta-store-badge');
           if (existing) existing.remove();
 
           var badge = document.createElement('div');
-          badge.id = 'pohrai-ne-hrai-store-badge';
+          badge.id = 'varta-store-badge';
           badge.textContent = "⚠️ Report Game";
           badge.style.cssText = [
             'position: fixed',
@@ -186,7 +186,7 @@ async function injectBadgeIntoStore(appid: string) {
               timestamp: Date.now()
             };
             
-            console.debug("POHRAI_REPORT:" + JSON.stringify({ url: url, data: data }));
+            console.debug("VARTA_REPORT:" + JSON.stringify({ url: url, data: data }));
           };
 
           document.body.appendChild(badge);
@@ -195,11 +195,11 @@ async function injectBadgeIntoStore(appid: string) {
     } else {
       script = `
         (function() {
-          var existing = document.getElementById('pohrai-ne-hrai-store-badge');
+          var existing = document.getElementById('varta-store-badge');
           if (existing) existing.remove();
 
           var badge = document.createElement('div');
-          badge.id = 'pohrai-ne-hrai-store-badge';
+          badge.id = 'varta-store-badge';
           badge.textContent = ${JSON.stringify(payload.label)};
           badge.style.cssText = [
             'position: fixed',
@@ -299,14 +299,14 @@ async function connectToStoreDebugger(retries = 5): Promise<void> {
           window.setTimeout(() => updateAppIdFromUrl(url), 500);
         } else if (data?.method === "Runtime.consoleAPICalled") {
           const args = data?.params?.args;
-          if (args && args.length > 0 && args[0].type === "string" && args[0].value.startsWith("POHRAI_REPORT:")) {
+          if (args && args.length > 0 && args[0].type === "string" && args[0].value.startsWith("VARTA_REPORT:")) {
             try {
               const payload = JSON.parse(args[0].value.substring(14));
               reportGameToPython(payload).then((success) => {
-                evaluateInStore(`console.log("POHRAI_REPLY received:", ${success});`);
+                evaluateInStore(`console.log("VARTA_REPLY received:", ${success});`);
                 if (success) {
                   evaluateInStore(`
-                    var b = document.getElementById('pohrai-ne-hrai-store-badge');
+                    var b = document.getElementById('varta-store-badge');
                     if (b) {
                       b.textContent = "✅ Sent!";
                       b.dataset.sent = "1";
@@ -319,7 +319,7 @@ async function connectToStoreDebugger(retries = 5): Promise<void> {
                   `);
                 } else {
                   evaluateInStore(`
-                    var b = document.getElementById('pohrai-ne-hrai-store-badge');
+                    var b = document.getElementById('varta-store-badge');
                     if (b) {
                       b.textContent = "❌ Error";
                       setTimeout(function() { b.textContent = "⚠️ Report Game"; }, 2000);
@@ -328,7 +328,7 @@ async function connectToStoreDebugger(retries = 5): Promise<void> {
                 }
               }).catch(() => {
                 evaluateInStore(`
-                  var b = document.getElementById('pohrai-ne-hrai-store-badge');
+                  var b = document.getElementById('varta-store-badge');
                   if (b) {
                     b.textContent = "❌ Error";
                     setTimeout(function() { b.textContent = "⚠️ Report Game"; }, 2000);

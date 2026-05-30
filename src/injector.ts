@@ -4,11 +4,11 @@ import type { AppStatus, InjectionDiagnostics, PluginSettings } from "./types";
 type StatusLookup = (appid: string) => Promise<AppStatus>;
 type DiagnosticsListener = (diagnostics: InjectionDiagnostics) => void;
 
-const STYLE_ID = "pohrai-ne-hrai-style";
-const OVERLAY_CLASS = "pohrai-ne-hrai-overlay";
-const BADGE_CLASS = "pohrai-ne-hrai-badge";
-const PAGE_BADGE_CLASS = "pohrai-ne-hrai-page-badge";
-const SCANNED_ATTR = "data-pohrai-scanned-appid";
+const STYLE_ID = "varta-style";
+const OVERLAY_CLASS = "varta-overlay";
+const BADGE_CLASS = "varta-badge";
+const PAGE_BADGE_CLASS = "varta-page-badge";
+const SCANNED_ATTR = "data-varta-scanned-appid";
 
 let observer: MutationObserver | null = null;
 let lookup: StatusLookup | null = null;
@@ -117,7 +117,7 @@ async function scanSteamUi(): Promise<void> {
       applyStatus(container, status);
       diagnostics.lastType = status.type;
     } catch (error) {
-      console.warn("[POHRAI/NE HRAI] status lookup failed", appid, error);
+      console.warn("[VARTA] status lookup failed", appid, error);
       diagnostics.lastError = error instanceof Error ? error.message : String(error);
       container.removeAttribute(SCANNED_ATTR);
     } finally {

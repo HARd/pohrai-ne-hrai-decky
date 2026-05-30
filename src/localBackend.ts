@@ -17,7 +17,7 @@ const DEFAULT_SETTINGS: PluginSettings = {
   lastSeenUkrCount: 0,
 };
 
-const SETTINGS_KEY = "pohrai-ne-hrai-settings";
+const SETTINGS_KEY = "varta-settings";
 
 export function getLocalSettings(): PluginSettings {
   const raw = localStorage.getItem(SETTINGS_KEY);

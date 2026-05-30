@@ -1,7 +1,7 @@
 {
-  "name": "decky-pohrai-ne-hrai",
-  "version": "0.9.8.1",
-  "description": "Decky Loader plugin that marks Ukrainian and hostile developers in the Steam Deck interface.",
+  "name": "varta-decky",
+  "version": "0.9.8.1.1",
+  "description": "VARTA: Decky Loader plugin that marks Ukrainian and hostile developers in the Steam Deck interface.",
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
@@ -15,7 +15,7 @@
     "steam",
     "ukraine"
   ],
-  "author": "POHRAI/NE HRAI contributors",
+  "author": "VARTA contributors",
   "license": "MIT",
   "devDependencies": {
     "@decky/rollup": "^1.0.2",

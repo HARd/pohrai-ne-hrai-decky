@@ -45,7 +45,7 @@ export function patchLibraryApp(lookup: Lookup, getSettings: SettingsGetter) {
 
         return ret;
       },
-      "PohraiNeHraiLibraryPatch",
+      "VartaLibraryPatch",
     );
 
     afterPatch(routeProps, "renderFunc", patchHandler);

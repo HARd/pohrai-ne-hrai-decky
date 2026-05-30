@@ -42,7 +42,7 @@ class Plugin:
             await self._ensure_loaded()
         except Exception as e:
             import traceback
-            decky.logger.error(f"POHRAI/NE HRAI _main error:\n{traceback.format_exc()}")
+            decky.logger.error(f"VARTA _main error:\n{traceback.format_exc()}")
 
     async def _ensure_loaded(self):
         if getattr(self, "_loaded", False):
@@ -73,7 +73,7 @@ class Plugin:
 
             self._loaded = True
             self._cache_dirty = False
-            decky.logger.info(f"POHRAI/NE HRAI loaded {len(self._hostile_set)} hostile and {len(self._ukrainian_set)} Ukrainian entries")
+            decky.logger.info(f"VARTA loaded {len(self._hostile_set)} hostile and {len(self._ukrainian_set)} Ukrainian entries")
 
             asyncio.create_task(self._refresh_database())
             asyncio.create_task(self._cache_saver_loop())
@@ -114,7 +114,7 @@ class Plugin:
         except Exception as e:
             import traceback
             err_trace = traceback.format_exc()
-            decky.logger.error(f"POHRAI/NE HRAI get_database_stats error:\n{err_trace}")
+            decky.logger.error(f"VARTA get_database_stats error:\n{err_trace}")
             return {"error": err_trace}
 
     async def get_settings(self):
@@ -288,7 +288,7 @@ class Plugin:
 
     def _fetch_appdetails(self, appid):
         url = f"https://store.steampowered.com/api/appdetails?appids={appid}"
-        req = urllib.request.Request(url, headers={"User-Agent": "decky-pohrai-ne-hrai/0.2"})
+        req = urllib.request.Request(url, headers={"User-Agent": "varta-decky/0.2"})
         payload = None
         try:
             with urllib.request.urlopen(req, timeout=8, context=SSL_CONTEXT) as response:
@@ -309,7 +309,7 @@ class Plugin:
         decky.logger.info(f"Falling back to SteamSpy API for {appid}")
         try:
             spy_url = f"https://steamspy.com/api.php?request=appdetails&appid={appid}"
-            spy_req = urllib.request.Request(spy_url, headers={"User-Agent": "decky-pohrai-ne-hrai/0.2"})
+            spy_req = urllib.request.Request(spy_url, headers={"User-Agent": "varta-decky/0.2"})
             with urllib.request.urlopen(spy_req, timeout=12, context=SSL_CONTEXT) as response:
                 if response.getcode() == 200:
                     spy_payload = json.loads(response.read().decode("utf-8"))
@@ -389,7 +389,7 @@ class Plugin:
         updated_etags = etags.copy()
         
         def fetch_node(node, default_value):
-            req = urllib.request.Request(f"{base_url}/{node}.json", headers={"User-Agent": "decky-pohrai-ne-hrai/0.2"})
+            req = urllib.request.Request(f"{base_url}/{node}.json", headers={"User-Agent": "varta-decky/0.2"})
             if node in updated_etags:
                 req.add_header("If-None-Match", updated_etags[node])
             try:
@@ -477,8 +477,8 @@ class Plugin:
     async def check_update(self):
         try:
             current = await self.get_version()
-            url = "https://api.github.com/repos/HARd/pohrai-ne-hrai-decky/releases/latest"
-            req = urllib.request.Request(url, headers={"User-Agent": "decky-pohrai-ne-hrai/0.1"})
+            url = "https://api.github.com/repos/HARd/varta-decky/releases/latest"
+            req = urllib.request.Request(url, headers={"User-Agent": "varta-decky/0.1"})
             with urllib.request.urlopen(req, timeout=12, context=SSL_CONTEXT) as response:
                 if response.getcode() == 200:
                     data = json.loads(response.read().decode("utf-8"))
@@ -500,7 +500,7 @@ class Plugin:
             decky.logger.info(f"Downloading update from {download_url}")
             with tempfile.TemporaryDirectory() as tmpdir:
                 zip_path = os.path.join(tmpdir, "update.zip")
-                req = urllib.request.Request(download_url, headers={"User-Agent": "decky-pohrai-ne-hrai/0.1"})
+                req = urllib.request.Request(download_url, headers={"User-Agent": "varta-decky/0.1"})
                 with urllib.request.urlopen(req, timeout=30, context=SSL_CONTEXT) as response, open(zip_path, "wb") as out_file:
                     shutil.copyfileobj(response, out_file)
                 

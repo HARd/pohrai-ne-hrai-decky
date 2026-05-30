@@ -145,7 +145,7 @@ function Content() {
             const diffU = Math.max(0, s.ukrainianCount - (settings.lastSeenUkrCount || 0));
             if (settings.lastSeenHostileCount !== 0) {
               toaster.toast({ 
-                title: "POHRAI/NE HRAI", 
+                title: "VARTA", 
                 body: t(settings.language, "toast_db_diff", { h: diffH, u: diffU }) 
               });
             }
@@ -172,7 +172,7 @@ function Content() {
     setSettings(next);
     updateSteamUiInjectionSettings(next);
     refreshStorePatch();
-    window.dispatchEvent(new CustomEvent("pohrai-settings-changed"));
+    window.dispatchEvent(new CustomEvent("varta-settings-changed"));
     
     // Auto-save to Python backend in the background
     void setSetting({ key: key as string, value })
@@ -187,7 +187,7 @@ function Content() {
       const dbStats = await refreshDatabase(true);
       setDb(dbStats);
       refreshStorePatch();
-      window.dispatchEvent(new CustomEvent("pohrai-settings-changed"));
+      window.dispatchEvent(new CustomEvent("varta-settings-changed"));
       
       let notifiedDiff = false;
       if (
@@ -198,7 +198,7 @@ function Content() {
         const diffU = Math.max(0, dbStats.ukrainianCount - (settings.lastSeenUkrCount || 0));
         if (settings.lastSeenHostileCount !== 0) {
           toaster.toast({ 
-            title: "POHRAI/NE HRAI", 
+            title: "VARTA", 
             body: t(settings.language, "toast_db_diff", { h: diffH, u: diffU }) 
           });
           notifiedDiff = true;
@@ -208,7 +208,7 @@ function Content() {
       }
       
       if (!notifiedDiff) {
-        toaster.toast({ title: "POHRAI/NE HRAI", body: t(settings.language, "toast_db_updated") });
+        toaster.toast({ title: "VARTA", body: t(settings.language, "toast_db_updated") });
       }
     } finally {
       setSyncing(false);
@@ -416,15 +416,15 @@ const fieldStyle = {
 } as const;
 
 export default definePlugin(() => {
-  console.log("[POHRAI/NE HRAI] initializing");
+  console.log("[VARTA] initializing");
 
   const libraryPatch = patchLibraryApp(getResolvedAppStatus, () => activeSettings);
   const stopStorePatch = initStorePatch(getResolvedAppStatus, () => activeSettings);
   startSteamUiInjection(getResolvedAppStatus, getLocalSettings());
 
   return {
-    name: "POHRAI/NE HRAI",
-    titleView: <div className={staticClasses.Title}>POHRAI/NE HRAI</div>,
+    name: "VARTA",
+    titleView: <div className={staticClasses.Title}>VARTA</div>,
     content: <Content />,
     icon: <FaFlag />,
     onDismount() {

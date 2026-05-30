@@ -1,4 +1,4 @@
-# POHRAI/NE HRAI for Decky Loader
+# VARTA for Decky Loader
 
 A plugin for Decky Loader that highlights Ukrainian and hostile developers directly inside the Steam Deck interface.
 
@@ -6,7 +6,7 @@ A plugin for Decky Loader that highlights Ukrainian and hostile developers direc
 
 Download the plugin archive here:
 
-[POHRAI/NE HRAI Decky Loader Release](https://github.com/HARd/pohrai-ne-hrai-decky/releases/latest/download/pohrai-ne-hrai.zip)
+[VARTA Decky Loader Release](https://github.com/HARd/varta-decky/releases/latest/download/varta-decky.zip)
 
 ### How to install in Decky Loader
 
@@ -16,7 +16,7 @@ Download the plugin archive here:
 4. Paste the following link:
 
 ```text
-https://github.com/HARd/pohrai-ne-hrai-decky/releases/latest/download/pohrai-ne-hrai.zip
+https://github.com/HARd/varta-decky/releases/latest/download/varta-decky.zip
 ```
 
 ## Credits

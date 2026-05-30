@@ -6,8 +6,8 @@ import { execFileSync } from "node:child_process";
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const rootPackage = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 const releaseDir = join(root, "release");
-const stagingDir = join(releaseDir, "pohrai-ne-hrai");
-const zipPath = join(releaseDir, "pohrai-ne-hrai.zip");
+const stagingDir = join(releaseDir, "varta-decky");
+const zipPath = join(releaseDir, "varta-decky.zip");
 
 if (existsSync(releaseDir)) {
   rmSync(releaseDir, { recursive: true, force: true });
@@ -29,7 +29,7 @@ writeFileSync(
   join(stagingDir, "package.json"),
   `${JSON.stringify(
     {
-      name: "pohrai-ne-hrai",
+      name: "varta-decky",
       version: rootPackage.version,
       description: "Marks Ukrainian and hostile game developers directly in the Steam Deck UI.",
       type: "module",
@@ -41,7 +41,7 @@ writeFileSync(
   )}\n`
 );
 
-execFileSync("zip", ["-r", zipPath, "pohrai-ne-hrai"], {
+execFileSync("zip", ["-r", zipPath, "varta-decky"], {
   cwd: releaseDir,
   stdio: "inherit",
 });

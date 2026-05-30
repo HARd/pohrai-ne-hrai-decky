@@ -17,8 +17,8 @@ export default function GamePageBadge({ lookup, getSettings, placement = "librar
 
   useEffect(() => {
     const listener = () => setLocalSettings(getSettings());
-    window.addEventListener("pohrai-settings-changed", listener);
-    return () => window.removeEventListener("pohrai-settings-changed", listener);
+    window.addEventListener("varta-settings-changed", listener);
+    return () => window.removeEventListener("varta-settings-changed", listener);
   }, [getSettings]);
 
   useEffect(() => {
