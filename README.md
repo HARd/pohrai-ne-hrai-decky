@@ -24,9 +24,8 @@ https://github.com/HARd/varta-decky/releases/latest/download/varta-decky.zip
 If you prefer to install manually via SSH or Desktop Mode:
 
 1. Download the `varta-decky.zip` archive using the link above.
-2. Extract the archive. You will get a folder named `varta-decky`.
-3. Copy the `varta-decky` folder to your Steam Deck's plugins directory:
-   `~/homebrew/plugins/`
+2. Open **Developer Settings**.
+3. Select **Install Plugin from ZIP**.
 4. Restart your Steam Deck or restart the Decky Loader service by running `systemctl restart plugin_loader` in the terminal.
 
 ## Credits
