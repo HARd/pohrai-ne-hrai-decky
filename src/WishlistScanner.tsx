@@ -42,8 +42,9 @@ export const WishlistScanner: FC<WishlistScannerProps> = ({ getAppStatus, lang }
     setHostileGames([]);
 
     try {
-      const res = await fetch("https://store.steampowered.com/dynamicstore/userdata/", {
-        credentials: "include"
+      const res = await fetch(`https://store.steampowered.com/dynamicstore/userdata/?_=${Date.now()}`, {
+        credentials: "include",
+        cache: "no-store"
       });
       const data = await res.json();
       
