@@ -4,14 +4,14 @@ import {
   PanelSection,
   PanelSectionRow,
   Spinner
-} from "decky-frontend-lib";
+} from "@decky/ui";
 import { FC, useState } from "react";
 import { AppStatus } from "./types";
-import { t } from "./i18n";
+import { t, Language } from "./i18n";
 
 interface WishlistScannerProps {
   getAppStatus: (appid: string) => Promise<AppStatus>;
-  lang: string;
+  lang: Language;
 }
 
 export const WishlistScanner: FC<WishlistScannerProps> = ({ getAppStatus, lang }) => {
