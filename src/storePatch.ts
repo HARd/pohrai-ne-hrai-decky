@@ -301,7 +301,7 @@ async function connectToStoreDebugger(retries = 5): Promise<void> {
           const args = data?.params?.args;
           if (args && args.length > 0 && args[0].type === "string" && args[0].value.startsWith("VARTA_REPORT:")) {
             try {
-              const payload = JSON.parse(args[0].value.substring(14));
+              const payload = JSON.parse(args[0].value.substring(13));
               reportGameToPython(payload).then((success) => {
                 evaluateInStore(`console.log("VARTA_REPLY received:", ${success});`);
                 if (success) {
