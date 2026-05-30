@@ -14,7 +14,7 @@ import {
   toaster,
 } from "@decky/api";
 import { useEffect, useState } from "react";
-import { FaFlag } from "react-icons/fa";
+import { VartaIcon } from "./icon";
 import {
   startSteamUiInjection,
   stopSteamUiInjection,
@@ -441,7 +441,7 @@ export default definePlugin(() => {
     name: "VARTA",
     titleView: <div className={staticClasses.Title}>VARTA</div>,
     content: <Content />,
-    icon: <FaFlag />,
+    icon: <VartaIcon />,
     onDismount() {
       routerHook.removePatch("/library/app/:appid", libraryPatch);
       stopStorePatch();
