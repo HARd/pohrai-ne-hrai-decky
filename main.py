@@ -541,28 +541,21 @@ class Plugin:
                     plugin_folder = extract_dir
 
                 decky.logger.info(f"Copying files from {plugin_folder} to {self._plugin_dir}")
-                import shutil
+                import subprocess
                 
-                # Unlink old files to prevent 'Text file busy' or permission errors
+                env = {"PATH": "/usr/bin:/bin:/usr/local/bin"}
+                
+                # Unlink old files
                 for item in os.listdir(self._plugin_dir):
                     if item in ["data", "settings"]: continue
                     p = os.path.join(self._plugin_dir, item)
-                    try:
-                        if os.path.isdir(p):
-                            shutil.rmtree(p)
-                        else:
-                            os.remove(p)
-                    except Exception as e:
-                        decky.logger.warning(f"Failed to remove {p} before update: {e}")
+                    subprocess.run(["rm", "-rf", p], env=env)
 
                 # Copy new files
-                for item in os.listdir(plugin_folder):
-                    s = os.path.join(plugin_folder, item)
-                    d = os.path.join(self._plugin_dir, item)
-                    if os.path.isdir(s):
-                        shutil.copytree(s, d, dirs_exist_ok=True)
-                    else:
-                        shutil.copy2(s, d)
+                cmd = ["cp", "-a", f"{plugin_folder}/.", f"{self._plugin_dir}/"]
+                result = subprocess.run(cmd, capture_output=True, text=True, env=env)
+                if result.returncode != 0:
+                    raise Exception(f"Copy failed (code {result.returncode}): {result.stderr}")
                 
                 decky.logger.info("Update applied, scheduling plugin loader restart in 2 seconds...")
                 async def _restart_later():
