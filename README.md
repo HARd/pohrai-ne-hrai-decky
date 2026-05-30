@@ -37,7 +37,7 @@ https://github.com/HARd/varta-decky/releases/latest/download/varta-decky.zip
 
 ---
 
-# VARTA for Decky Loader (🇬🇧 English)
+# VARTA for Decky Loader 
 
 A plugin for Decky Loader that highlights Ukrainian and hostile developers directly inside the Steam Deck interface.
 
