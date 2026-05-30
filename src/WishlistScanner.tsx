@@ -5,6 +5,7 @@ import {
   PanelSectionRow,
   Spinner
 } from "@decky/ui";
+import { toaster } from "@decky/api";
 import { FC, useState } from "react";
 import { AppStatus } from "./types";
 import { t, Language } from "./i18n";
@@ -24,12 +25,30 @@ export const WishlistScanner: FC<WishlistScannerProps> = ({ getAppStatus, lang }
 
   const getSessionId = async () => {
     try {
-      const res = await fetch("https://store.steampowered.com/", { credentials: "include" });
-      const text = await res.text();
-      const match = text.match(/g_sessionID\s*=\s*"([^"]+)"/);
-      return match ? match[1] : null;
-    } catch (e) {
+      let res = await fetch("https://store.steampowered.com/", { credentials: "include" });
+      let text = await res.text();
+      let match = text.match(/g_sessionID\s*=\s*"([^"]+)"/) || text.match(/data-sessionid="([^"]+)"/) || text.match(/sessionid=([^;"]+)/);
+      if (match) return match[1];
+
+      res = await fetch("https://steamcommunity.com/", { credentials: "include" });
+      text = await res.text();
+      match = text.match(/g_sessionID\s*=\s*"([^"]+)"/) || text.match(/data-sessionid="([^"]+)"/) || text.match(/sessionid=([^;"]+)/);
+      if (match) return match[1];
+
+      console.error("Could not find sessionID in HTML. Lengths:", text.length);
+      toaster.toast({
+        title: "Помилка Wishlist",
+        body: "Не вдалося знайти sessionID. Потрібна авторизація.",
+        duration: 4000,
+      });
+      return null;
+    } catch (e: any) {
       console.error("Failed to get sessionID", e);
+      toaster.toast({
+        title: "Помилка запиту",
+        body: e.message || String(e),
+        duration: 4000,
+      });
       return null;
     }
   };
@@ -95,8 +114,18 @@ export const WishlistScanner: FC<WishlistScannerProps> = ({ getAppStatus, lang }
       }
       // Clear list after successful deletion
       setHostileGames([]);
-    } catch (e) {
+      toaster.toast({
+        title: "Успіх",
+        body: "Ігри успішно видалено зі списку бажаного!",
+        duration: 4000,
+      });
+    } catch (e: any) {
       console.error("Failed to remove games", e);
+      toaster.toast({
+        title: "Помилка",
+        body: "Не вдалося видалити: " + (e.message || String(e)),
+        duration: 4000,
+      });
     } finally {
       setIsDeleting(false);
     }
