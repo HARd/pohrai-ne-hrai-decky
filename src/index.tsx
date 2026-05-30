@@ -54,10 +54,6 @@ const setSetting = callable<[{key: string, value: any}], PluginSettings>("set_se
 const refreshDatabase = callable<[force: boolean], DatabaseStats>("refresh_database");
 const getDatabaseStats = callable<[], DatabaseStats>("get_database_stats");
 
-const getPluginVersion = callable<[], string>("get_version");
-const checkPluginUpdate = callable<[], { available: boolean; version?: string; url?: string }>("check_update");
-const applyPluginUpdate = callable<[downloadUrl: string], string>("apply_update");
-
 function getColorOptions(lang: "uk" | "en") {
   return [
     { data: "#e74c3c", label: t(lang, "color_red") },
@@ -98,14 +94,8 @@ function Content() {
   const [syncing, setSyncing] = useState(false);
   const [db, setDb] = useState<DatabaseStats | null>(null);
   const [statsError, setStatsError] = useState<string | null>(null);
-  const [pluginVersion, setPluginVersion] = useState<string>("...");
-  const [updateInfo, setUpdateInfo] = useState<{ available: boolean; version?: string; url?: string } | null>(null);
-  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
-  const [isUpdating, setIsUpdating] = useState(false);
 
-  useEffect(() => {
-    getPluginVersion().then(setPluginVersion).catch(() => {});
-  }, []);
+
 
   useEffect(() => {
     let mounted = true;
