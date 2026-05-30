@@ -102,14 +102,14 @@ export const WishlistScanner: FC<WishlistScannerProps> = ({ getAppStatus, lang }
     setIsDeleting(true);
     try {
       for (const game of hostileGames) {
-        const formData = new FormData();
-        formData.append("sessionid", sessionId);
-        formData.append("appid", game.appid);
-
         await fetch("https://store.steampowered.com/api/removefromwishlist", {
           method: "POST",
           credentials: "include",
-          body: formData
+          mode: "no-cors",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+          },
+          body: `sessionid=${sessionId}&appid=${game.appid}`
         });
       }
       // Clear list after successful deletion
