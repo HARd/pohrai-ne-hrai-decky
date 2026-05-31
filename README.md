@@ -1,5 +1,8 @@
 # VARTA для Decky Loader 
 
+[![Stable Release Build](https://github.com/HARd/varta-decky/actions/workflows/release.yml/badge.svg?branch=main)](https://github.com/HARd/varta-decky/actions/workflows/release.yml)
+[![Testing Release Build](https://github.com/HARd/varta-decky/actions/workflows/release.yml/badge.svg?branch=varta-testing)](https://github.com/HARd/varta-decky/actions/workflows/release.yml)
+
 Плагін для Decky Loader, який маркує українських та ворожих розробників і видавців безпосередньо в інтерфейсі Steam Deck. Дозволяє легко підтримувати своїх та ігнорувати ворогів.
 
 ## Встановлення
