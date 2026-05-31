@@ -2,6 +2,7 @@ import { callable, fetchNoCors } from "@decky/api";
 import { findModuleExport } from "@decky/ui";
 import type { AppStatus, PluginSettings } from "./types";
 import { t } from "./i18n";
+import { reportError } from "./errorReporter";
 
 type Lookup = (appid: string) => Promise<AppStatus>;
 type SettingsGetter = () => PluginSettings;
@@ -233,7 +234,9 @@ async function injectBadgeIntoStore(appid: string) {
     }
     
     evaluateInStore(script);
+    evaluateInStore(script);
   } catch (error) {
+    reportError(error, "injectBadgeIntoStore");
     removeBadgeFromStore();
   }
 }
@@ -339,10 +342,11 @@ async function connectToStoreDebugger(retries = 5): Promise<void> {
               });
             } catch (e) {
               console.error("Failed to parse report payload", e);
+              reportError(e, "Runtime.consoleAPICalled payload parsing");
             }
           }
         }
-      } catch {
+      } catch (e) {
         // Ignore debugger messages that are not JSON payloads we care about.
       }
     };
@@ -360,7 +364,8 @@ async function connectToStoreDebugger(retries = 5): Promise<void> {
         connectTimeoutId = window.setTimeout(() => void connectToStoreDebugger(retries), 1000);
       }
     };
-  } catch {
+  } catch (error) {
+    reportError(error, "connectToStoreDebugger");
     if (isStoreMounted) {
       connectTimeoutId = window.setTimeout(() => void connectToStoreDebugger(retries - 1), 1000);
     }
@@ -385,11 +390,15 @@ function disconnectStoreDebugger() {
 }
 
 function handleLocationChange(pathname: string) {
-  if (pathname === "/steamweb") {
-    isStoreMounted = true;
-    void connectToStoreDebugger();
-  } else if (isStoreMounted) {
-    disconnectStoreDebugger();
+  try {
+    if (pathname === "/steamweb") {
+      isStoreMounted = true;
+      void connectToStoreDebugger();
+    } else if (isStoreMounted) {
+      disconnectStoreDebugger();
+    }
+  } catch (error) {
+    reportError(error, "handleLocationChange");
   }
 }
 

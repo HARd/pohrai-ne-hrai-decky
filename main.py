@@ -5,6 +5,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
 import decky
 try:
     import ssl
@@ -42,7 +43,9 @@ class Plugin:
             await self._ensure_loaded()
         except Exception as e:
             import traceback
-            decky.logger.error(f"VARTA _main error:\n{traceback.format_exc()}")
+            err = traceback.format_exc()
+            decky.logger.error(f"VARTA _main error:\n{err}")
+            self._send_sentry_event(f"Init error: {e}", exc_info=err)
 
     async def _ensure_loaded(self):
         if getattr(self, "_loaded", False):
@@ -86,7 +89,9 @@ class Plugin:
             asyncio.create_task(self._auto_refresh_loop())
             asyncio.create_task(self._cache_saver_loop())
         except Exception as e:
-            decky.logger.error(f"Failed to load Ne Hrai SD backend: {e}")
+            import traceback
+            decky.logger.error(f"Failed to load VARTA backend: {e}")
+            self._send_sentry_event(f"Load error: {e}", exc_info=traceback.format_exc())
             raise
         finally:
             self._loading = False
@@ -123,6 +128,7 @@ class Plugin:
             import traceback
             err_trace = traceback.format_exc()
             decky.logger.error(f"VARTA get_database_stats error:\n{err_trace}")
+            self._send_sentry_event(f"DB Stats error: {e}", exc_info=err_trace)
             return {"error": err_trace}
 
     async def _auto_refresh_loop(self):
@@ -511,4 +517,43 @@ class Plugin:
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(None, self._save_json, self._cache_path, self._cache)
 
+    async def report_frontend_error(self, message, stack=""):
+        decky.logger.error(f"Frontend Error: {message}\n{stack}")
+        try:
+            self._send_sentry_event(message, exc_info=stack, extra_tags={"source": "frontend"})
+        except Exception:
+            pass
+        return True
 
+    def _send_sentry_event(self, message, exc_info=None, extra_tags=None):
+        try:
+            url = "https://o426573.ingest.us.sentry.io/api/4511482012762112/store/"
+            payload = {
+                "event_id": uuid.uuid4().hex,
+                "timestamp": int(time.time()),
+                "level": "error",
+                "logger": "varta-decky",
+                "platform": "python",
+                "message": str(message)[:1000],
+                "tags": {"source": "backend"}
+            }
+            if extra_tags:
+                payload["tags"].update(extra_tags)
+                
+            if exc_info:
+                payload["exception"] = {
+                    "values": [{
+                        "type": "Exception",
+                        "value": str(exc_info)[:2000],
+                    }]
+                }
+                
+            headers = {
+                "Content-Type": "application/json",
+                "X-Sentry-Auth": "Sentry sentry_version=7, sentry_key=b8414e0a5fa8cc6fce67a6daafe48f37, sentry_client=varta-decky/1.0"
+            }
+            req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST")
+            with urllib.request.urlopen(req, timeout=5, context=SSL_CONTEXT) as response:
+                pass
+        except Exception as e:
+            decky.logger.warning(f"Failed to send Sentry event: {e}")

@@ -1,5 +1,6 @@
 import { Router } from "@decky/ui";
 import type { AppStatus, InjectionDiagnostics, PluginSettings } from "./types";
+import { reportError } from "./errorReporter";
 
 type StatusLookup = (appid: string) => Promise<AppStatus>;
 type DiagnosticsListener = (diagnostics: InjectionDiagnostics) => void;
@@ -28,6 +29,12 @@ let diagnostics: InjectionDiagnostics = {
   route: "",
 };
 
+function safeScanSteamUi() {
+  scanSteamUi().catch((error) => {
+    reportError(error, "scanSteamUi");
+  });
+}
+
 export function startSteamUiInjection(
   nextLookup: StatusLookup,
   nextSettings: PluginSettings,
@@ -51,12 +58,16 @@ export function startSteamUiInjection(
 }
 
 export function updateSteamUiInjectionSettings(nextSettings: PluginSettings): void {
-  settings = nextSettings;
-  injectStyles(nextSettings);
-  document.querySelectorAll<HTMLElement>(`.${OVERLAY_CLASS}`).forEach((el) => el.remove());
-  document.querySelectorAll<HTMLElement>(`.${BADGE_CLASS}`).forEach((el) => el.remove());
-  document.querySelectorAll<HTMLElement>(`[${SCANNED_ATTR}]`).forEach((el) => el.removeAttribute(SCANNED_ATTR));
-  scanSoon();
+  try {
+    settings = nextSettings;
+    injectStyles(nextSettings);
+    document.querySelectorAll<HTMLElement>(`.${OVERLAY_CLASS}`).forEach((el) => el.remove());
+    document.querySelectorAll<HTMLElement>(`.${BADGE_CLASS}`).forEach((el) => el.remove());
+    document.querySelectorAll<HTMLElement>(`[${SCANNED_ATTR}]`).forEach((el) => el.removeAttribute(SCANNED_ATTR));
+    scanSoon();
+  } catch (error) {
+    reportError(error, "updateSteamUiInjectionSettings");
+  }
 }
 
 export function stopSteamUiInjection(): void {
@@ -76,7 +87,7 @@ export function stopSteamUiInjection(): void {
 function scanSoon(): void {
   window.clearTimeout(scanTimer);
   scanTimer = window.setTimeout(() => {
-    void scanSteamUi();
+    safeScanSteamUi();
   }, 250);
 }
 

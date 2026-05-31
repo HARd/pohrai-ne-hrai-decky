@@ -7,13 +7,9 @@ import {
   DropdownItem,
   staticClasses,
 } from "@decky/ui";
-import {
-  callable,
-  definePlugin,
-  routerHook,
-  toaster,
-} from "@decky/api";
-import { useEffect, useState } from "react";
+import { callable, definePlugin, routerHook, toaster } from "@decky/api";
+import { useEffect, useState, Component, ReactNode, ErrorInfo } from "react";
+import { reportError } from "./errorReporter";
 import { FaFlag } from "react-icons/fa";
 import {
   startSteamUiInjection,
@@ -366,6 +362,23 @@ const fieldStyle = {
   fontSize: "13px",
 } as const;
 
+class ErrorBoundary extends Component<{children: ReactNode}, {hasError: boolean}> {
+  constructor(props: {children: ReactNode}) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    reportError(error, `React ErrorBoundary: \n${errorInfo.componentStack}`);
+  }
+  render() {
+    if (this.state.hasError) return <div style={{padding: "10px", color: "#e74c3c"}}>VARTA UI Crashed. Check Sentry logs.</div>;
+    return this.props.children;
+  }
+}
+
 export default definePlugin(() => {
   console.log("[VARTA] initializing");
 
@@ -376,7 +389,7 @@ export default definePlugin(() => {
   return {
     name: "VARTA",
     titleView: <div className={staticClasses.Title}>VARTA</div>,
-    content: <Content />,
+    content: <ErrorBoundary><Content /></ErrorBoundary>,
     icon: <FaFlag />,
     onDismount() {
       routerHook.removePatch("/library/app/:appid", libraryPatch);
