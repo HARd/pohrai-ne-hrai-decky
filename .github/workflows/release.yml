@@ -2,6 +2,9 @@ name: Release Decky Plugin
 
 on:
   push:
+    branches:
+      - main
+      - varta-testing
     tags:
       - "v*"
   workflow_dispatch:
